@@ -21,10 +21,12 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "usb_device.h"
+#include "esp8266.h"
+#include "task_list.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#define	BUF_SIZE 1024
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -46,6 +48,7 @@
 /* Private variables ---------------------------------------------------------*/
 UART_HandleTypeDef huart2;
 DMA_HandleTypeDef hdma_usart2_tx;
+static uint8_t buffer[BUF_SIZE + 1];
 
 /* USER CODE BEGIN PV */
 
@@ -98,6 +101,39 @@ int main(void)
   MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
 
+  if (esp8266_init(&huart2)){
+  		while (1)
+  			;
+  	}
+  	if (esp8266_connect_WiFi(&huart2, "ESP8266",
+  			"hijason12")) {
+  		while (1)
+  			;
+  	}
+  	if (esp8266_connect_TCP(&huart2, "172.20.10.2", 10000)) {
+  		while (1)
+  			;
+  	}
+
+  	// TODO: connect to the kRPC server
+  	// 1. port krpc-cnano into this project
+  	// 	1.1 writing the four functions in "communication.h"
+  	//	1.2 writing the iostream callback functions
+  	// 2. get the initialization sequence in this code
+
+  	init_task_list();
+
+  	strcpy((char *) buffer, "Hello Jeremy every 15 seconds!");
+  	buffer[BUF_SIZE] = (uint8_t) strlen((char *) buffer);
+  	//HAL_UART_Transmit_IT(&s_UARTHandle, &buffer[BUF_SIZE], 1);
+  	add_task(REQUEST_TASK, buffer[BUF_SIZE], (void *) buffer, 15 * SEC, 15 * SEC);
+  	strcpy((char *) buffer, "Hello Nick every 10 seconds!");
+  	buffer[BUF_SIZE] = (uint8_t) strlen((char *) buffer);
+  	add_task(REQUEST_TASK, buffer[BUF_SIZE], (void *) buffer, 10 * SEC, 10 * SEC);
+  	strcpy((char *) buffer, "Hello Pablo every 5 seconds!");
+  	buffer[BUF_SIZE] = (uint8_t) strlen((char *) buffer);
+  	add_task(REQUEST_TASK, buffer[BUF_SIZE], (void *) buffer, 5 * SEC, 5 * SEC);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -105,6 +141,8 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
+	  //asm("wfi");
+	  handle_tasks(&huart2);
 
     /* USER CODE BEGIN 3 */
   }
