@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<section name="Workbench">
+	<section name="completion_proposal_size">
+	</section>
+	<section name="org.eclipse.cdt.ui.text.hover.CMacroExpansionExploration">
+		<item key="size.width" value="640"/>
+		<item key="size.height" value="554"/>
+		<item key="location.x" value="575"/>
+		<item key="location.y" value="344"/>
+	</section>
+	<section name="PDOMSearchPage">
+		<item key="caseSensitive" value="false"/>
+		<item key="searchFlags" value="227191"/>
+		<list key="previousPatterns">
+			<item value="CDC_Itf_Transmit"/>
+			<item value="FREEZE"/>
+			<item value="USE_HAL_PCD_REGISTER"/>
+			<item value="DMA1_Channel5_IRQHandler"/>
+			<item value="DMA1_Channel4_IRQ"/>
+			<item value="DMA1_Channel4_IRQn"/>
+			<item value="TIM_HandleTypeDef"/>
+			<item value="HAL_UART_RxCpltCallback"/>
+			<item value="HAL_TIM_PeriodElapsedCallback"/>
+			<item value="CDC_Itf_Init"/>
+		</list>
+	</section>
+	<section name="org.eclipse.cdt.ui.text.hover.CMacroExpansionExploration.internal">
+		<item key="size.width" value="1120"/>
+		<item key="size.height" value="262"/>
+	</section>
+</section>

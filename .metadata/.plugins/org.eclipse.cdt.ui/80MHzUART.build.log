@@ -1,0 +1,12 @@
+16:51:03 **** Build of configuration Debug for project 80MHzUART ****
+make all 
+arm-none-eabi-gcc -g3 -c -x assembler-with-cpp --specs=nano.specs -mfloat-abi=soft -mthumb -o "startup/startup_stm32l476xx.o" "../startup/startup_stm32l476xx.S"
+arm-none-eabi-gcc "../src/esp8266.c" -std=gnu11 -g3 -DSTM32L476xx -c -I"C:/Users/booth/Documents/ENEE408A/ComponentTests/80MHzUART/inc" -I"C:/Users/booth/Documents/ENEE408A/ComponentTests/80MHzUART/HAL_Driver/Inc" -I"C:/Users/booth/Documents/ENEE408A/ComponentTests/80MHzUART/CMSIS/core" -I"C:/Users/booth/Documents/ENEE408A/ComponentTests/80MHzUART/CMSIS/device" -I"C:/Users/booth/Documents/ENEE408A/ComponentTests/80MHzUART/Utilities/STM32L476G-Discovery" -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -MMD -MP -MF"src/esp8266.d" -MT"src/esp8266.o" --specs=nano.specs -mfloat-abi=soft -mthumb -o "src/esp8266.o"
+arm-none-eabi-gcc "../src/main.c" -std=gnu11 -g3 -DSTM32L476xx -c -I"C:/Users/booth/Documents/ENEE408A/ComponentTests/80MHzUART/inc" -I"C:/Users/booth/Documents/ENEE408A/ComponentTests/80MHzUART/HAL_Driver/Inc" -I"C:/Users/booth/Documents/ENEE408A/ComponentTests/80MHzUART/CMSIS/core" -I"C:/Users/booth/Documents/ENEE408A/ComponentTests/80MHzUART/CMSIS/device" -I"C:/Users/booth/Documents/ENEE408A/ComponentTests/80MHzUART/Utilities/STM32L476G-Discovery" -O0 -ffunction-sections -fdata-sections -Wall -fstack-usage -MMD -MP -MF"src/main.d" -MT"src/main.o" --specs=nano.specs -mfloat-abi=soft -mthumb -o "src/main.o"
+C:\Users\booth\AppData\Local\Temp\ccnb8QRd.s: Assembler messages:
+C:\Users\booth\AppData\Local\Temp\ccnb8QRd.s:853: Error: selected processor does not support `bkpt 255' in Thumb mode
+make: *** [src/subdir.mk:35: src/main.o] Error 1
+"make all" terminated with exit code 2. Build might be incomplete.
+
+16:51:07 Build Failed. 2 errors, 0 warnings. (took 4s.388ms)
+
