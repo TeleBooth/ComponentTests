@@ -30,30 +30,6 @@ static void Init(void);
 //static uint8_t ESP8266_Init(void);
 
 /* Private functions ---------------------------------------------------------*/
-void USART2_IRQHandler(void) {
-	HAL_UART_IRQHandler(&s_UARTHandle);
-}
-
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
-	if (rx_flag) {
-		rx_flag = 0;
-		HAL_UART_Transmit_IT(huart, &buffer[BUF_SIZE], 1);
-	} else {
-		rx_flag = 1;
-		HAL_UART_Receive_IT(huart, buffer, buffer[BUF_SIZE]);
-	}
-}
-
-void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
-	if (tx_flag) {
-		tx_flag = 0;
-		HAL_UART_Receive_IT(huart, &buffer[BUF_SIZE], 1);
-	}
-	else {
-		tx_flag = 1;
-		HAL_UART_Transmit_IT(huart, buffer, buffer[BUF_SIZE]);
-	}
-}
 
 /**
  * @brief  Main program
