@@ -6,6 +6,26 @@
 
 static uint8_t esp_buffer[ESP_BUF_SIZE];
 
+// this will let us take the next "responseSize" bytes received and put them aside as our response
+uint8_t responseBuffer[256];
+uint16_t responseSizeTmp = 0;
+extern uint16_t responseSize;
+
+// transmit and receive wrappers used to implement the response behavior
+void Transmit_Wrapper(UART_HandleTypeDef *huart, uint8_t *pData, uint16_t Size, uint16_t responseSize){
+	responseSizeTmp = responseSize;
+	while(HAL_UART_Transmit_DMA(huart, pData, Size) == HAL_BUSY);
+}
+
+// busy waits
+ESP8266_STATUS Receive_Wrapper(uint8_t * responseBuffer, const char * compareString, uint16_t compareStringLength){
+	while(responseSize > 0);
+	if (strncmp((char *) responseBuffer, compareString, compareStringLength)) {
+			return ESP8266_ERROR;
+		}
+	return ESP8266_OK;
+}
+
 /*-- Checks to see if the ESP8266 module is alive, then disables command echoing, and enables station mode --*/
 ESP8266_STATUS esp8266_init(UART_HandleTypeDef *huart) {
 	if (esp8266_reset(huart)) {
@@ -14,46 +34,40 @@ ESP8266_STATUS esp8266_init(UART_HandleTypeDef *huart) {
 
 	// Check if alive, note that echoing has yet to be disabled
 	strcpy((char *) esp_buffer, C_AT);
-	while(HAL_UART_Transmit_DMA(huart, esp_buffer, C_AT_LEN) == HAL_ERROR);
-	HAL_UART_Receive(huart, esp_buffer, C_AT_LEN + R_OK_LEN, DELAY_5_SEC);
-	if (strncmp((char *) esp_buffer, C_AT, C_AT_LEN)
-			| strncmp((char *) &esp_buffer[C_AT_LEN], R_OK, R_OK_LEN)) {
+	Transmit_Wrapper(huart, esp_buffer, C_AT_LEN, C_AT_LEN + R_OK_LEN);
+	if (Receive_Wrapper(responseBuffer, C_AT_OK , C_AT_LEN + R_OK_LEN)) {
 		return ESP8266_ERROR;
 	}
+	//HAL_Delay(100);
 
 	// Disable echoing
 	strcpy((char *) esp_buffer, C_ATE("0"));
-	while(HAL_UART_Transmit_DMA(huart, esp_buffer, C_ATE_LEN("0")) == HAL_ERROR);
-	HAL_UART_Receive(huart, esp_buffer, C_ATE_LEN("0") + R_OK_LEN, DELAY_5_SEC);
-	if (strncmp((char *) esp_buffer, C_ATE("0"), C_ATE_LEN("0"))
-			| strncmp((char *) &esp_buffer[C_ATE_LEN("0")], R_OK, R_OK_LEN)) {
+	Transmit_Wrapper(huart, esp_buffer, C_ATE_LEN("0"), C_ATE_LEN("0") + R_OK_LEN);
+	if (Receive_Wrapper(responseBuffer, C_ATE0_OK , C_ATE_LEN("0") + R_OK_LEN)) {
 		return ESP8266_ERROR;
 	}
+	//HAL_Delay(100);
 
 	// Enable station mode
 	strcpy((char *) esp_buffer, C_AT_CWMODE("1"));
-	while(HAL_UART_Transmit_DMA(huart, esp_buffer, C_AT_CWMODE_LEN("1")) == HAL_ERROR);
-	HAL_UART_Receive(huart, esp_buffer, R_OK_LEN, DELAY_10_SEC);
-	if (strncmp((char *) esp_buffer, R_OK, R_OK_LEN)) {
+	Transmit_Wrapper(huart, esp_buffer, C_AT_CWMODE_LEN("1"), R_OK_LEN);
+	if(Receive_Wrapper(responseBuffer, R_OK , R_OK_LEN))
 		return ESP8266_ERROR;
-	}
+	//HAL_Delay(100);
+
 
 	return ESP8266_OK;
 }
 
 /*-- Physically resets the ESP8266 by triggering its reset pin using GPIOA Pin 1 --*/
 ESP8266_STATUS esp8266_reset(UART_HandleTypeDef *huart) {
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, GPIO_PIN_SET);
-	HAL_Delay(10);
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, GPIO_PIN_RESET);
-	HAL_Delay(10);
-	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, GPIO_PIN_SET);
+	strcpy((char *) esp_buffer, "AT+RST\r\n");
+	HAL_UART_Transmit_DMA(huart, esp_buffer, 8);
 
-	HAL_UART_Receive(huart, esp_buffer, 565, DELAY_5_SEC);
-	if (strncmp((char *) &esp_buffer[565 - R_RESET_LEN], R_RESET,
-	R_RESET_LEN)) {
+	Transmit_Wrapper(huart, esp_buffer, 8, 565);
+	if(Receive_Wrapper(&responseBuffer[565-R_RESET_LEN], R_RESET , R_RESET_LEN))
 		return ESP8266_ERROR;
-	}
+
 	return ESP8266_OK;
 }
 
@@ -68,11 +82,9 @@ ESP8266_STATUS esp8266_connect_WiFi(UART_HandleTypeDef *huart, char *ssid,
 	strcat((char *) esp_buffer, "\"\r\n");
 
 	// Connect to WiFi
-	while(HAL_UART_Transmit_DMA(huart, esp_buffer, strlen((char *) esp_buffer)) == HAL_ERROR);
-	HAL_UART_Receive(huart, esp_buffer, R_AT_CWJAP_LEN, DELAY_20_SEC);
-	if (strncmp((char *) esp_buffer, R_AT_CWJAP, R_AT_CWJAP_LEN)) {
+	Transmit_Wrapper(huart, esp_buffer, strlen((char *) esp_buffer), R_AT_CWJAP_LEN);
+	if(Receive_Wrapper(responseBuffer, R_AT_CWJAP, R_AT_CWJAP_LEN))
 		return ESP8266_ERROR;
-	}
 
 	return ESP8266_OK;
 }
@@ -92,19 +104,16 @@ ESP8266_STATUS esp8266_connect_TCP(UART_HandleTypeDef *huart, char *ip,
 	strcat((char *) esp_buffer, "\r\n");
 
 	// Connect to TCP port
-	while(HAL_UART_Transmit_DMA(huart, esp_buffer, strlen((char *) esp_buffer)) == HAL_ERROR);
-	HAL_UART_Receive(huart, esp_buffer, R_AT_CIPSTART_LEN, DELAY_10_SEC);
-	if (strncmp((char *) esp_buffer, R_AT_CIPSTART, R_AT_CIPSTART_LEN)) {
+	Transmit_Wrapper(huart, esp_buffer, strlen((char *) esp_buffer), R_AT_CIPSTART_LEN);
+	if(Receive_Wrapper(responseBuffer, R_AT_CIPSTART, R_AT_CIPSTART_LEN))
 		return ESP8266_ERROR;
-	}
 
 	// Set SSL size to 4096
 	strcpy((char *) esp_buffer, C_AT_CIPSSLSIZE("4096"));
-	while(HAL_UART_Transmit_DMA(huart, esp_buffer, C_AT_CIPSSLSIZE_LEN("4096")) == HAL_ERROR);
-	HAL_UART_Receive(huart, esp_buffer, R_OK_LEN, DELAY_10_SEC);
-	if (strncmp((char *) esp_buffer, R_OK, R_OK_LEN)) {
+	Transmit_Wrapper(huart, esp_buffer, C_AT_CIPSSLSIZE_LEN("4096"), R_OK_LEN);
+	if(Receive_Wrapper(responseBuffer, R_OK, R_OK_LEN))
 		return ESP8266_ERROR;
-	}
+
 
 	// Set IP mode to 1, UART pass-through
 	if (esp8266_enable_passthrough(huart)) {
@@ -113,12 +122,9 @@ ESP8266_STATUS esp8266_connect_TCP(UART_HandleTypeDef *huart, char *ip,
 
 	// Start communications
 	strcpy((char *) esp_buffer, C_AT_CIPSEND);
-	while(HAL_UART_Transmit_DMA(huart, esp_buffer, C_AT_CIPSEND_LEN) == HAL_ERROR);
-	while(HAL_UART_Receive(huart, esp_buffer, R_AT_CIPSEND_LEN,
-	HAL_MAX_DELAY) == HAL_ERROR);
-	if (strncmp((char *) esp_buffer, R_AT_CIPSEND, R_AT_CIPSEND_LEN)) {
+	Transmit_Wrapper(huart, esp_buffer, C_AT_CIPSEND_LEN, R_AT_CIPSEND_LEN);
+	if(Receive_Wrapper(responseBuffer, R_AT_CIPSEND, R_AT_CIPSEND_LEN))
 		return ESP8266_ERROR;
-	}
 
 	return ESP8266_OK;
 }
@@ -126,12 +132,9 @@ ESP8266_STATUS esp8266_connect_TCP(UART_HandleTypeDef *huart, char *ip,
 ESP8266_STATUS esp8266_enable_passthrough(UART_HandleTypeDef *huart) {
 	// Set IP mode to 1, UART pass-through
 	strcpy((char *) esp_buffer, C_AT_CIPMODE("1"));
-	while(HAL_UART_Transmit_DMA(huart, esp_buffer, C_AT_CIPMODE_LEN("1")) == HAL_ERROR);
-	while(HAL_UART_Receive(huart, esp_buffer, R_OK_LEN,
-	DELAY_10_SEC) == HAL_ERROR);
-	if (strncmp((char *) esp_buffer, R_OK, R_OK_LEN)) {
+	Transmit_Wrapper(huart, esp_buffer, C_AT_CIPMODE_LEN("1"), R_OK_LEN);
+	if(Receive_Wrapper(responseBuffer, R_OK, R_OK_LEN))
 		return ESP8266_ERROR;
-	}
 
 	return ESP8266_OK;
 }
@@ -140,6 +143,6 @@ ESP8266_STATUS esp8266_disable_passthrough(UART_HandleTypeDef *huart) {
 	// Disable UART pass-through
 	strcpy((char *) esp_buffer, "+++");
 	while(HAL_UART_Transmit_DMA(huart, esp_buffer, strlen((char *) esp_buffer)) == HAL_ERROR);
-
+	Transmit_Wrapper(huart, esp_buffer, strlen((char *) esp_buffer), 0);
 	return ESP8266_OK;
 }

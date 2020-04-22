@@ -48,10 +48,9 @@
 /* Private variables ---------------------------------------------------------*/
 UART_HandleTypeDef huart2;
 DMA_HandleTypeDef hdma_usart2_tx;
-static uint8_t buffer[BUF_SIZE + 1];
 
 /* USER CODE BEGIN PV */
-
+static uint8_t buffer[BUF_SIZE + 1];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -101,19 +100,21 @@ int main(void)
   MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
 
+  HAL_Delay(5000);
+
   if (esp8266_init(&huart2)){
   		while (1)
   			;
   	}
-  	if (esp8266_connect_WiFi(&huart2, "ESP8266",
-  			"hijason12")) {
-  		while (1)
-  			;
-  	}
-  	if (esp8266_connect_TCP(&huart2, "172.20.10.2", 10000)) {
-  		while (1)
-  			;
-  	}
+//  	if (esp8266_connect_WiFi(&huart2, "ESP8266",
+//  			"hijason12")) {
+//  		while (1)
+//  			;
+//  	}
+//  	if (esp8266_connect_TCP(&huart2, "172.20.10.2", 10000)) {
+//  		while (1)
+//  			;
+//  	}
 
   	// TODO: connect to the kRPC server
   	// 1. port krpc-cnano into this project
@@ -141,10 +142,9 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
+    /* USER CODE BEGIN 3 */
 	  //asm("wfi");
 	  handle_tasks(&huart2);
-
-    /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
 }

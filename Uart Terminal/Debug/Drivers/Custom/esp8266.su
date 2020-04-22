@@ -1,6 +1,8 @@
-esp8266.c:10:16:esp8266_init	24	static
-esp8266.c:45:16:esp8266_reset	16	static
-esp8266.c:61:16:esp8266_connect_WiFi	32	static
-esp8266.c:81:16:esp8266_connect_TCP	40	static
-esp8266.c:126:16:esp8266_enable_passthrough	24	static
-esp8266.c:139:16:esp8266_disable_passthrough	16	static
+esp8266.c:15:6:Transmit_Wrapper	24	static
+esp8266.c:21:16:Receive_Wrapper	24	static
+esp8266.c:30:16:esp8266_init	24	static
+esp8266.c:63:16:esp8266_reset	16	static
+esp8266.c:75:16:esp8266_connect_WiFi	32	static
+esp8266.c:93:16:esp8266_connect_TCP	40	static
+esp8266.c:132:16:esp8266_enable_passthrough	24	static
+esp8266.c:142:16:esp8266_disable_passthrough	16	static

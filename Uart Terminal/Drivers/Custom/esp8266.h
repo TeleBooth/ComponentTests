@@ -11,8 +11,12 @@
 #define C_AT							"AT\r\n"
 #define	C_AT_LEN						strlen(C_AT)
 
+#define C_AT_OK							"AT\r\n\r\nOK\r\n"
+
 #define C_ATE(MODE)						"ATE"MODE"\r\n"
 #define C_ATE_LEN(MODE)					strlen(C_ATE(MODE))
+
+#define C_ATE0_OK						"ATE0\r\n\r\nOK\r\n"
 
 #define C_AT_CWMODE(MODE)				"AT+CWMODE_CUR="MODE"\r\n"
 #define C_AT_CWMODE_LEN(MODE)			strlen(C_AT_CWMODE(MODE))

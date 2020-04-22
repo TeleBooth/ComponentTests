@@ -395,10 +395,12 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   {
     if(UserTxBufPtrOut > UserTxBufPtrIn) /* rollback */
     {
+    	// for a rollback, we do the linear part first then roll around and print out the next part when we get to it
       buffsize = APP_RX_DATA_SIZE - UserTxBufPtrOut;
     }
     else
     {
+    	// the next time the callback is called, we get that part that we missed
       buffsize = UserTxBufPtrIn - UserTxBufPtrOut;
     }
 
@@ -417,6 +419,11 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   }
 }
 
+uint16_t responseSize;
+extern uint8_t responseBuffer[256];
+extern uint16_t responseSizeTmp;
+uint16_t responsePtr = 0;
+
 /**
   * @brief  Rx Transfer completed callback
   * @param  huart: UART handle
@@ -433,6 +440,11 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     UserTxBufPtrIn = 0;
   }
 
+  // to implement response storage
+  if (responseSize - responsePtr > 0) {
+	  responseBuffer[++responsePtr] = UserTxBufferFS[UserTxBufPtrIn];
+  }
+
   /* Start another reception: provide the buffer pointer with offset and the buffer size */
   HAL_UART_Receive_IT(huart, (uint8_t *)(UserTxBufferFS + UserTxBufPtrIn), 1);
   //Toggle_Leds();
@@ -445,6 +457,9 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
   */
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 {
+	// once we've completed the transmit, prepare for the response
+	responseSize = responseSizeTmp;
+	responseSizeTmp = 0;
   /* Initiate next USB packet transfer once UART completes transfer (transmitting data over Tx line) */
   USBD_CDC_ReceivePacket(&hUsbDeviceFS);
   //Toggle_Leds();
