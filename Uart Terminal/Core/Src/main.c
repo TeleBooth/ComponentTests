@@ -100,21 +100,22 @@ int main(void)
   MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
 
-  HAL_Delay(5000);
+  // this delay gives you enough time to connect the STM to realterm
+  HAL_Delay(1000);
 
   if (esp8266_init(&huart2)){
   		while (1)
   			;
   	}
-//  	if (esp8266_connect_WiFi(&huart2, "ESP8266",
-//  			"hijason12")) {
-//  		while (1)
-//  			;
-//  	}
-//  	if (esp8266_connect_TCP(&huart2, "172.20.10.2", 10000)) {
-//  		while (1)
-//  			;
-//  	}
+  	if (esp8266_connect_WiFi(&huart2, "NETGEAR21",
+  			"precioussquirrel044")) {
+  		while (1)
+  			;
+  	}
+  	if (esp8266_connect_TCP(&huart2, "172.20.10.2", 10000)) {
+  		while (1)
+  			;
+  	}
 
   	// TODO: connect to the kRPC server
   	// 1. port krpc-cnano into this project

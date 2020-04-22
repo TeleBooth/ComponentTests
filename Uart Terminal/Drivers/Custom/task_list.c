@@ -151,6 +151,6 @@ void handle_response (UART_HandleTypeDef *huart, TASK_NODE *t) {
 }
 
 void handle_request (UART_HandleTypeDef *huart, TASK_NODE *t) {
-	HAL_UART_Transmit(huart, &t->size, 1, 5 * SEC);
-	HAL_UART_Transmit(huart, t->task, t->size, 5 * SEC);
+	HAL_UART_Transmit_DMA(huart, &t->size, 1);
+	while(HAL_UART_Transmit_DMA(huart, t->task, t->size) == HAL_BUSY);
 }

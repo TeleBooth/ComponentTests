@@ -11,12 +11,12 @@
 #define C_AT							"AT\r\n"
 #define	C_AT_LEN						strlen(C_AT)
 
-#define C_AT_OK							"AT\r\n\r\nOK\r\n"
+#define C_AT_OK							"AT\r\r\n\r\nOK\r\n"
 
 #define C_ATE(MODE)						"ATE"MODE"\r\n"
 #define C_ATE_LEN(MODE)					strlen(C_ATE(MODE))
 
-#define C_ATE0_OK						"ATE0\r\n\r\nOK\r\n"
+#define C_ATE0_OK						"ATE0\r\r\n\r\nOK\r\n"
 
 #define C_AT_CWMODE(MODE)				"AT+CWMODE_CUR="MODE"\r\n"
 #define C_AT_CWMODE_LEN(MODE)			strlen(C_AT_CWMODE(MODE))
@@ -46,6 +46,9 @@
 
 #define R_AT_CWJAP						"WIFI CONNECTED\r\nWIFI GOT IP\r\n\r\nOK\r\n"
 #define R_AT_CWJAP_LEN					strlen(R_AT_CWJAP)
+
+#define R_AT_CWJAP_FAIL						"WIFI DISCONNECTED\r\n"
+#define R_AT_CWJAP_FAIL_LEN					strlen(R_AT_CWJAP_FAIL)
 
 #define R_AT_CIPSTART					"CONNECT\r\n\r\nOK\r\n"
 #define R_AT_CIPSTART_LEN				strlen(R_AT_CIPSTART)

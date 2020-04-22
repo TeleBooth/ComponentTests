@@ -1,7 +1,0 @@
-task_list.c:16:6:init_task_list	16	static
-task_list.c:32:9:is_empty	4	static
-task_list.c:40:10:bring_current	16	static
-task_list.c:62:6:add_task	40	static
-task_list.c:124:6:handle_tasks	40	static
-task_list.c:149:6:handle_response	16	static
-task_list.c:153:6:handle_request	16	static
