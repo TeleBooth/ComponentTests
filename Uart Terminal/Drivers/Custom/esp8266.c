@@ -17,7 +17,7 @@ uint8_t resetSeq = 0;
 void Transmit_Wrapper(UART_HandleTypeDef *huart, uint8_t *pData, uint16_t Size, uint16_t responseSize){
 	responseSizeTmp = responseSize;
 	while(HAL_UART_Transmit_DMA(huart, pData, Size) == HAL_BUSY);
-	HAL_Delay(100);
+	HAL_Delay(500);
 }
 
 // busy waits
@@ -77,14 +77,14 @@ ESP8266_STATUS esp8266_reset(UART_HandleTypeDef *huart) {
 	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, GPIO_PIN_RESET);
 	HAL_Delay(500);
 	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, GPIO_PIN_SET);
-	HAL_Delay(1000);
+	HAL_Delay(500);
 	resetSeq = 0;
 
 	// we might need to iterate through a few different strings to see if we can find "ready"
 	int i;
 	// it seems like we might loose upwards of 10 characters, so I want to make a wide window
 	// starting from 325 going to 340 as starting points to look for "ready"
-	for(i = 0; i < 15; i++){
+	for(i = 0; i <= 15; i++){
 		if(!Receive_Wrapper(&responseBuffer[325+i], "ready" , 5))
 			return ESP8266_OK;
 	}
@@ -107,7 +107,7 @@ ESP8266_STATUS esp8266_connect_WiFi(UART_HandleTypeDef *huart, char *ssid,
 	// since not connecting provides the shorter sequence, then we can look at that to not lock our
 	// receiving wrapper
 	Transmit_Wrapper(huart, esp_buffer, strlen((char *) esp_buffer), R_AT_CWJAP_FAIL);
-	HAL_Delay(7500);
+	HAL_Delay(3000);
 	resetSeq = 0;
 	if(Receive_Wrapper(responseBuffer, R_AT_CWJAP, R_AT_CWJAP_LEN))
 		return ESP8266_ERROR;

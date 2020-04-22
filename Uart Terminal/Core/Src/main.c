@@ -112,7 +112,7 @@ int main(void)
   		while (1)
   			;
   	}
-  	if (esp8266_connect_TCP(&huart2, "172.20.10.2", 10000)) {
+    if (esp8266_connect_TCP(&huart2, "172.20.10.2", 10000)) {
   		while (1)
   			;
   	}
