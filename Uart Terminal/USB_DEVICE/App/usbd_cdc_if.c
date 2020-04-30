@@ -381,6 +381,13 @@ uint8_t CDC_Transmit_FS(uint8_t* Buf, uint16_t Len)
 
 /* USER CODE BEGIN PRIVATE_FUNCTIONS_IMPLEMENTATION */
 
+uint16_t responseSize;
+uint8_t responseBuffer[1024];
+extern uint16_t responseSizeTmp;
+uint16_t responsePtr;
+extern uint8_t resetSeq;
+extern uint8_t passthroughMode;
+
 /**
   * @brief  TIM period elapsed callback
   * @param  htim: TIM handle
@@ -391,7 +398,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   uint32_t buffptr;
   uint32_t buffsize;
 
-  if(UserTxBufPtrOut != UserTxBufPtrIn)
+  if(!passthroughMode && (UserTxBufPtrOut != UserTxBufPtrIn))
   {
     if(UserTxBufPtrOut > UserTxBufPtrIn) /* rollback */
     {
@@ -417,13 +424,19 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
       }
     }
   }
-}
+  // otherwise, if we're in passthrough mode, we just send a new CDC packet whenever the Rx finishes and there is data available
+  else if (passthroughMode){
+	  if((huart2.RxState == HAL_UART_STATE_READY) && (UserTxBufPtrIn != 0)) {
+		  buffsize = UserTxBufPtrIn;
 
-uint16_t responseSize;
-uint8_t responseBuffer[1024];
-extern uint16_t responseSizeTmp;
-uint16_t responsePtr;
-extern uint8_t resetSeq;
+		  USBD_CDC_SetTxBuffer(&hUsbDeviceFS, UserTxBufferFS, buffsize);
+		  if(USBD_CDC_TransmitPacket(&hUsbDeviceFS) == USBD_OK) {
+			  UserTxBufPtrIn = 0;
+		  }
+	  }
+
+  }
+}
 
 /**
   * @brief  Rx Transfer completed callback
@@ -432,6 +445,7 @@ extern uint8_t resetSeq;
   */
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
+	if(!passthroughMode){
 
 	// to implement response storage
 	  if (responseSize > 0 || resetSeq) {
@@ -439,20 +453,25 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 		  responseSize--;
 	  }
 
-  /* Increment Index for buffer writing */
-  UserTxBufPtrIn++;
+	  /* Increment Index for buffer writing */
+	  UserTxBufPtrIn++;
 
-  /* To avoid buffer overflow */
-  if(UserTxBufPtrIn == APP_RX_DATA_SIZE)
-  {
-    UserTxBufPtrIn = 0;
-  }
+	  /* To avoid buffer overflow */
+	  if(UserTxBufPtrIn == APP_RX_DATA_SIZE)
+	  {
+		UserTxBufPtrIn = 0;
+	  }
 
 
 
-  /* Start another reception: provide the buffer pointer with offset and the buffer size */
-  HAL_UART_Receive_IT(huart, (uint8_t *)(UserTxBufferFS + UserTxBufPtrIn), 1);
-  //Toggle_Leds();
+	  /* Start another reception: provide the buffer pointer with offset and the buffer size */
+	  HAL_UART_Receive_IT(huart, (uint8_t *)(UserTxBufferFS + UserTxBufPtrIn), 1);
+	}
+	else {
+		// if we're in passthrough mode, we can't keep intercepting each byte without breaking the kRPC functionality
+		// so we just set this pointer so that we can output through the CDC and then continue like a regular UART
+		UserTxBufPtrIn = huart->RxXferSize;
+	}
 }
 
 /**

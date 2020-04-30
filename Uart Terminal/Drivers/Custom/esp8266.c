@@ -1,7 +1,7 @@
 #include "string.h"
 #include "stdio.h"
 #include "esp8266.h"
-#include "stm32l4xx.h"
+#include "krpc_cnano.h"
 //#include "stm32l476g_discovery.h"
 
 static uint8_t esp_buffer[ESP_BUF_SIZE];
@@ -12,6 +12,7 @@ uint16_t responseSizeTmp = 0;
 extern int16_t responseSize;
 extern uint8_t UserTxBufferFS[2048];
 uint8_t resetSeq = 0;
+uint8_t passthroughMode = 0;
 
 // transmit and receive wrappers used to implement the response behavior
 void Transmit_Wrapper(UART_HandleTypeDef *huart, uint8_t *pData, uint16_t Size, uint16_t responseSize){
@@ -69,7 +70,6 @@ ESP8266_STATUS esp8266_reset(UART_HandleTypeDef *huart) {
 	// this helps to deal with the uncertainty surrounding how long the reset sequence is
 	resetSeq = 1;
 	// IMPORTANT: YOU MIGHT NEED TO MODIFY THIS DEPENDING ON WHERE IN YOUR RESET SEQUENCE "READY" SHOWS UP
-	//Transmit_Wrapper(huart, esp_buffer, 8, 300); // passing in 300, since we're waiting for however many characters we can get in 1.1s
 	// but if we pass
 	// after transmitting and the second-long delay that elapses, hopefully we'll have it
 	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, GPIO_PIN_SET);
@@ -82,7 +82,7 @@ ESP8266_STATUS esp8266_reset(UART_HandleTypeDef *huart) {
 
 	// we might need to iterate through a few different strings to see if we can find "ready"
 	int i;
-	// it seems like we might loose upwards of 10 characters, so I want to make a wide window
+	// it seems like we might lose upwards of 15 characters, so I want to make a wide window
 	// starting from 325 going to 340 as starting points to look for "ready"
 	for(i = 0; i <= 15; i++){
 		if(!Receive_Wrapper(&responseBuffer[325+i], "ready" , 5))
@@ -106,15 +106,16 @@ ESP8266_STATUS esp8266_connect_WiFi(UART_HandleTypeDef *huart, char *ssid,
 	// Ethier we wait for it to connect, or we wait for it not connect
 	// since not connecting provides the shorter sequence, then we can look at that to not lock our
 	// receiving wrapper
-	Transmit_Wrapper(huart, esp_buffer, strlen((char *) esp_buffer), R_AT_CWJAP_FAIL);
+	Transmit_Wrapper(huart, esp_buffer, strlen((char *) esp_buffer), R_AT_CWJAP_FAIL_LEN);
 	HAL_Delay(3000);
 	resetSeq = 0;
-	if(Receive_Wrapper(responseBuffer, R_AT_CWJAP, R_AT_CWJAP_LEN))
+	if(Receive_Wrapper(responseBuffer, R_AT_CWJAP_FAIL, R_AT_CWJAP_FAIL_LEN))
 		return ESP8266_ERROR;
 
 	return ESP8266_OK;
 }
 
+krpc_connection_t connection;
 /*-- Connects to TCP port specified by IP and port, sets SSL size to 4096, and enables UART pass-through --*/
 ESP8266_STATUS esp8266_connect_TCP(UART_HandleTypeDef *huart, char *ip,
 		uint16_t port) {
@@ -133,6 +134,13 @@ ESP8266_STATUS esp8266_connect_TCP(UART_HandleTypeDef *huart, char *ip,
 
 	Transmit_Wrapper(huart, esp_buffer, strlen((char *) esp_buffer), R_AT_CIPSTART_LEN);
 	if(Receive_Wrapper(responseBuffer, R_AT_CIPSTART, R_AT_CIPSTART_LEN))
+		return ESP8266_ERROR;
+
+	// Initialize the kRPC connection
+	connection.inBufPtr = UserTxBufferFS;
+	connection.huart = huart;
+
+	if(krpc_connect(&connection, "HELLO") != KRPC_OK)
 		return ESP8266_ERROR;
 
 	// Set SSL size to 4096
@@ -163,6 +171,7 @@ ESP8266_STATUS esp8266_enable_passthrough(UART_HandleTypeDef *huart) {
 	if(Receive_Wrapper(responseBuffer, R_OK, R_OK_LEN))
 		return ESP8266_ERROR;
 
+	passthroughMode = 1;
 	return ESP8266_OK;
 }
 
@@ -171,5 +180,6 @@ ESP8266_STATUS esp8266_disable_passthrough(UART_HandleTypeDef *huart) {
 	strcpy((char *) esp_buffer, "+++");
 	while(HAL_UART_Transmit_DMA(huart, esp_buffer, strlen((char *) esp_buffer)) == HAL_ERROR);
 	Transmit_Wrapper(huart, esp_buffer, strlen((char *) esp_buffer), 0);
+	passthroughMode = 0;
 	return ESP8266_OK;
 }

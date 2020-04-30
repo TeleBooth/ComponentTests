@@ -1,4 +1,5 @@
 #include "stm32l4xx.h"
+#include "stm32l4xx_hal.h"
 //#include "stm32l476g_discovery.h"
 
 /*-- Miscellaneous --*/
@@ -69,3 +70,6 @@ ESP8266_STATUS esp8266_connect_WiFi (UART_HandleTypeDef *huart, char *ssid, char
 ESP8266_STATUS esp8266_connect_TCP (UART_HandleTypeDef *huart, char *ip, uint16_t port);
 ESP8266_STATUS esp8266_enable_passthrough (UART_HandleTypeDef *huart);
 ESP8266_STATUS esp8266_disable_passthrough (UART_HandleTypeDef *huart);
+
+ESP8266_STATUS Receive_Wrapper(uint8_t * responseBufferSmol, const char * compareString, uint16_t compareStringLength);
+void Transmit_Wrapper(UART_HandleTypeDef *huart, uint8_t *pData, uint16_t Size, uint16_t responseSize);
