@@ -1,6 +1,9 @@
 #pragma once
 
 #include <stdio.h>
+#include <stdarg.h>
+#include "usbd_cdc_if.h"
+#include "usbd_def.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -21,13 +24,20 @@ typedef enum {
 
 /* Convert an error code to a string */
 const char * krpc_get_error(krpc_error_t error);
+extern USBD_HandleTypeDef hUsbDeviceFS;
+extern uint8_t UserTxBufferFS[2048];
+void USB_CDC_Wrapper(uint32_t size);
 
 /* Print an error message when it occurs */
 #if !defined(KRPC_PRINT_ERROR)
 #ifdef KRPC_PRINT_ERRORS_TO_STDERR
 #define KRPC_PRINT_ERROR(...) fprintf(stderr, __VA_ARGS__)
 #else
-#define KRPC_PRINT_ERROR(...)
+#define KRPC_PRINT_ERROR(...) {	\
+	uint32_t size = sprintf((char *) UserTxBufferFS, __VA_ARGS__); \
+	USB_CDC_Wrapper(size + 1);  \
+}
+
 #endif
 #endif
 

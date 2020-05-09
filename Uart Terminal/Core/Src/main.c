@@ -23,6 +23,9 @@
 #include "usb_device.h"
 #include "esp8266.h"
 #include "task_list.h"
+#include "services/space_center.h"
+#include "services/krpc.h"
+#include "krpc_cnano.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -112,16 +115,52 @@ int main(void)
   		while (1)
   			;
   	}
-    if (esp8266_connect_TCP(&huart2, "172.20.10.2", 10000)) {
+   if (esp8266_connect_TCP(&huart2, "98.223.235.63", 50000)) {
   		while (1)
   			;
   	}
 
+   krpc_connection_t connection;
+
+   // Initialize the kRPC connection
+   	connection.huart = &huart2;
+
+	if(krpc_connect(&connection,"hello") != KRPC_OK) {
+		while(1)
+			;
+	}
+
+   //HAL_Delay(1000);
+
+   krpc_schema_Status status;
+   krpc_KRPC_GetStatus(&connection,&status);
+
+   krpc_SpaceCenter_Vessel_t vessel;
+   krpc_SpaceCenter_ActiveVessel(&connection,&vessel);
+   HAL_Delay(1000);
+
+   krpc_SpaceCenter_Vessel_set_Name(&connection,vessel, "Helloooooo");
+   HAL_Delay(1000);
+
+    // Get a handle to a Flight object for the vessel
+    /*krpc_SpaceCenter_Flight_t flight;
+    krpc_SpaceCenter_Vessel_Flight(connection, &flight, vessel, KRPC_NULL);
+    HAL_Delay(2500);
+    // Get the altiude
+    double altitude;
+    krpc_SpaceCenter_Flight_MeanAltitude(connection, &altitude, flight);
+    HAL_Delay(2500);
+    //printf("%.2f\n", altitude);
+	*/
+    while(1)
+    	;
+
   	// TODO: connect to the kRPC server
-  	// 1. port krpc-cnano into this project
-  	// 	1.1 writing the four functions in "communication.h"
-  	//	1.2 writing the iostream callback functions
-  	// 2. get the initialization sequence in this code
+	/**
+	 * Why is the server receiving garbage?
+	 * Investigate the single return byte?
+	 * See why the decode process is overrunning the buffer?
+	 */
 
   	init_task_list();
 
