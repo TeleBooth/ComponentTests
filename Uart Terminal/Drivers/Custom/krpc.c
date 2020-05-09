@@ -10,10 +10,10 @@
 #include <pb_decode.h>
 #include <pb_encode.h>
 
-static bool write_callback(pb_ostream_t *stream, const uint8_t *buf, size_t count);
+static bool write_callback(pb_ostream_t *stream, uint8_t *buf, size_t count);
 static bool read_callback(pb_istream_t *stream, uint8_t *buf, size_t count);
-static pb_ostream_t krpc_pb_ostream_from_connection(krpc_connection_t * connection);
-static pb_istream_t krpc_pb_istream_from_connection(krpc_connection_t * connection);
+pb_ostream_t krpc_pb_ostream_from_connection(krpc_connection_t * connection);
+pb_istream_t krpc_pb_istream_from_connection(krpc_connection_t * connection);
 
 krpc_error_t krpc_connect(krpc_connection_t * connection, const char * client_name) {
   {
@@ -47,7 +47,7 @@ krpc_error_t krpc_connect(krpc_connection_t * connection, const char * client_na
   return KRPC_OK;
 }
 
-static bool krpc_decode_callback_error(
+bool krpc_decode_callback_error(
   pb_istream_t * stream, const pb_field_t * field, void ** arg) {
   krpc_error_t * error_code = (krpc_error_t*)(*arg);
   *error_code = KRPC_ERROR_RPC_FAILED;
@@ -56,6 +56,7 @@ static bool krpc_decode_callback_error(
     KRPC_RETURN_STREAM_ERROR(DECODING_FAILED, "failed to decode error message", stream);
   return true;
 }
+
 
 krpc_error_t krpc_invoke(krpc_connection_t * connection, krpc_schema_ProcedureResult * result,
                          krpc_schema_ProcedureCall * call) {
@@ -117,12 +118,12 @@ static bool read_callback(pb_istream_t * stream, uint8_t * buf, size_t count) {
   return true;
 }
 
-static pb_ostream_t krpc_pb_ostream_from_connection(krpc_connection_t * connection) {
+pb_ostream_t krpc_pb_ostream_from_connection(krpc_connection_t * connection) {
   pb_ostream_t stream = {&write_callback, (void*)connection, SIZE_MAX, 0};
   return stream;
 }
 
-static pb_istream_t krpc_pb_istream_from_connection(krpc_connection_t * connection) {
+pb_istream_t krpc_pb_istream_from_connection(krpc_connection_t * connection) {
   pb_istream_t stream = {&read_callback, (void*)connection, SIZE_MAX};
   return stream;
 }
