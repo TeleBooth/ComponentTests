@@ -472,7 +472,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 	else {
 		// if we're in passthrough mode, we can't keep intercepting each byte without breaking the kRPC functionality
 		// so we just set this pointer so that we can output through the CDC and then continue like a regular UART
-		UserTxBufPtrIn += huart->RxXferSize;
+		//UserTxBufPtrIn += huart->RxXferSize;
 		//responseSize = huart->RxXferCount;
 		//assert(responseSize > -1);
 	}

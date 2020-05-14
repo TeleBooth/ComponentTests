@@ -23,9 +23,8 @@
 #include "usb_device.h"
 #include "esp8266.h"
 #include "task_list.h"
-#include "services/space_center.h"
-#include "services/krpc.h"
-#include "krpc_cnano.h"
+#include <pb_encode.h>
+#include "krpc.pb.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -39,8 +38,12 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-//
-
+typedef struct
+{
+    char * message_string;
+    // include other fields as I need them
+}
+callback_context_t;
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -53,7 +56,7 @@ UART_HandleTypeDef huart2;
 DMA_HandleTypeDef hdma_usart2_tx;
 
 /* USER CODE BEGIN PV */
-static uint8_t buffer[BUF_SIZE + 1];
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -62,6 +65,27 @@ static void MX_GPIO_Init(void);
 //static void MX_DMA_Init(void);
 //static void MX_USART2_UART_Init(void);
 /* USER CODE BEGIN PFP */
+
+bool encode_string(pb_ostream_t* stream, const pb_field_t* field, void * const * arg)
+{
+	callback_context_t * ctx = (callback_context_t *) *arg;
+    char * str = ctx->message_string;
+
+    if (!pb_encode_tag_for_field(stream, field))
+        return false;
+
+    return pb_encode_string(stream, (uint8_t*)str, strlen(str));
+}
+
+bool encode_calls(pb_ostream_t *stream, const pb_field_t *field, void * const * arg)
+{
+	krpc_schema_ProcedureCall * calls = (krpc_schema_ProcedureCall *) *arg;
+
+	if (!pb_encode_tag_for_field(stream, field))
+	    return false;
+
+	return pb_encode(stream, krpc_schema_ProcedureCall_fields, calls);
+}
 
 /* USER CODE END PFP */
 
@@ -103,6 +127,8 @@ int main(void)
   MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
 
+
+
   // this delay gives you enough time to connect the STM to realterm
   HAL_Delay(1000);
 
@@ -120,38 +146,37 @@ int main(void)
   			;
   	}
 
-   krpc_connection_t connection;
-
-   // Initialize the kRPC connection
-   	connection.huart = &huart2;
-
-	if(krpc_connect(&connection,"hello") != KRPC_OK) {
-		while(1)
-			;
-	}
-
    //HAL_Delay(1000);
 
-   krpc_schema_Status status;
-   krpc_KRPC_GetStatus(&connection,&status);
 
-   krpc_SpaceCenter_Vessel_t vessel;
-   krpc_SpaceCenter_ActiveVessel(&connection,&vessel);
-   HAL_Delay(1000);
 
-   krpc_SpaceCenter_Vessel_set_Name(&connection,vessel, "Helloooooo");
-   HAL_Delay(1000);
 
-    // Get a handle to a Flight object for the vessel
-    /*krpc_SpaceCenter_Flight_t flight;
-    krpc_SpaceCenter_Vessel_Flight(connection, &flight, vessel, KRPC_NULL);
-    HAL_Delay(2500);
-    // Get the altiude
-    double altitude;
-    krpc_SpaceCenter_Flight_MeanAltitude(connection, &altitude, flight);
-    HAL_Delay(2500);
-    //printf("%.2f\n", altitude);
-	*/
+	  // Send a get_Status request
+	  krpc_schema_Request request;
+	  krpc_schema_ProcedureCall calls[1];
+	  krpc_schema_ProcedureCall getStatus;
+	  callback_context_t ctxProc;
+	  callback_context_t ctxServ;
+	  krpc_schema_Argument args[0];
+	  stream = pb_ostream_from_buffer(buffer, sizeof(buffer));
+	  ctxProc.message_string = "GetStatus";
+	  getStatus.procedure.arg = &ctxProc;
+	  getStatus.procedure.funcs.encode = &encode_string;
+	  ctxServ.message_string = "KRPC";
+	  getStatus.service.arg = &ctxServ;
+	  getStatus.service.funcs.encode = &encode_string;
+	  getStatus.procedure_id = 3;
+	  getStatus.service_id = 1;
+	  getStatus.arguments.arg = args;
+	  getStatus.arguments.funcs.encode = 0;
+	  calls[0] = getStatus;
+	  request.calls.arg = &calls;
+	  request.calls.funcs.encode = &encode_calls;
+
+	  pb_encode(&stream, krpc_schema_Request_fields, &request);
+
+	  while((result = HAL_UART_Transmit_DMA(&huart2, buffer, stream.bytes_written)) == HAL_BUSY);
+
     while(1)
     	;
 
