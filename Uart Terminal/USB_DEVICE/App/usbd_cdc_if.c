@@ -471,9 +471,13 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 		// if we're in passthrough mode, we can't keep intercepting each byte without breaking the kRPC functionality
 		// so we just set this pointer so that we can output through the CDC and then continue like a regular UART
 <<<<<<< HEAD
+<<<<<<< HEAD
 		//UserTxBufPtrIn += huart->RxXferSize;
 		//responseSize = huart->RxXferCount;
 		//assert(responseSize > -1);
+=======
+		UserTxBufPtrIn = huart->RxXferSize;
+>>>>>>> parent of 4845cfe... Merge pull request #1 from TeleBooth/kRPC-integration
 =======
 		UserTxBufPtrIn = huart->RxXferSize;
 >>>>>>> parent of 4845cfe... Merge pull request #1 from TeleBooth/kRPC-integration

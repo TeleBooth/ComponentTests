@@ -24,8 +24,11 @@
 #include "esp8266.h"
 #include "task_list.h"
 <<<<<<< HEAD
+<<<<<<< HEAD
 #include <pb_encode.h>
 #include "krpc.pb.h"
+=======
+>>>>>>> parent of 4845cfe... Merge pull request #1 from TeleBooth/kRPC-integration
 =======
 >>>>>>> parent of 4845cfe... Merge pull request #1 from TeleBooth/kRPC-integration
 
@@ -150,6 +153,7 @@ int main(void)
   	}
 
 <<<<<<< HEAD
+<<<<<<< HEAD
    //HAL_Delay(1000);
 
 
@@ -184,6 +188,8 @@ int main(void)
     while(1)
     	;
 
+=======
+>>>>>>> parent of 4845cfe... Merge pull request #1 from TeleBooth/kRPC-integration
 =======
 >>>>>>> parent of 4845cfe... Merge pull request #1 from TeleBooth/kRPC-integration
   	// TODO: connect to the kRPC server
