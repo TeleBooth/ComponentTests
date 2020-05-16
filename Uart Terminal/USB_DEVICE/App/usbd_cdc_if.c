@@ -103,7 +103,7 @@ uint8_t UserTxBufferFS[APP_TX_DATA_SIZE];
 
 USBD_CDC_LineCodingTypeDef LineCoding =
   {
-    115200, /* baud rate*/
+    74480, /* baud rate*/
     0x00,   /* stop bits-1*/
     0x00,   /* parity - none*/
     0x08    /* nb. of bits 8*/
@@ -183,7 +183,7 @@ static int8_t CDC_Init_FS(void)
   /*##-1- Configure the UART peripheral ######################################*/
   	  /* Put the USART peripheral in the Asynchronous mode (UART Mode) */
 	  huart2.Instance = USART2;
-	  huart2.Init.BaudRate = 115200;
+	  huart2.Init.BaudRate = 74480;
 	  huart2.Init.WordLength = UART_WORDLENGTH_8B;
 	  huart2.Init.StopBits = UART_STOPBITS_1;
 	  huart2.Init.Parity = UART_PARITY_NONE;
@@ -385,7 +385,7 @@ uint16_t responseSize;
 uint8_t responseBuffer[1024];
 extern uint16_t responseSizeTmp;
 uint16_t responsePtr;
-extern uint8_t resetSeq;
+extern uint8_t unknownSize;
 extern uint8_t passthroughMode;
 
 /**
@@ -398,7 +398,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   uint32_t buffptr;
   uint32_t buffsize;
 
-  if(!passthroughMode && (UserTxBufPtrOut != UserTxBufPtrIn))
+  if(UserTxBufPtrOut != UserTxBufPtrIn)
   {
     if(UserTxBufPtrOut > UserTxBufPtrIn) /* rollback */
     {
@@ -426,14 +426,16 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   }
   // otherwise, if we're in passthrough mode, we just send a new CDC packet whenever the Rx finishes and there is data available
   else if (passthroughMode){
-	  if((huart2.RxState == HAL_UART_STATE_READY) && (UserTxBufPtrIn != 0)) {
+	  // for now, do nothing if it's in passthrough mode
+	  /*
+	  if((UserTxBufPtrIn != 0)) {
 		  buffsize = UserTxBufPtrIn;
 
 		  USBD_CDC_SetTxBuffer(&hUsbDeviceFS, UserTxBufferFS, buffsize);
 		  if(USBD_CDC_TransmitPacket(&hUsbDeviceFS) == USBD_OK) {
 			  UserTxBufPtrIn = 0;
 		  }
-	  }
+	  }*/
 
   }
 }
@@ -448,7 +450,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 	if(!passthroughMode){
 
 	// to implement response storage
-	  if (responseSize > 0 || resetSeq) {
+	  if (responseSize > 0 || unknownSize) {
 		  responseBuffer[responsePtr++] = UserTxBufferFS[UserTxBufPtrIn];
 		  responseSize--;
 	  }
@@ -470,13 +472,9 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 	else {
 		// if we're in passthrough mode, we can't keep intercepting each byte without breaking the kRPC functionality
 		// so we just set this pointer so that we can output through the CDC and then continue like a regular UART
-<<<<<<< HEAD
 		//UserTxBufPtrIn += huart->RxXferSize;
 		//responseSize = huart->RxXferCount;
 		//assert(responseSize > -1);
-=======
-		UserTxBufPtrIn = huart->RxXferSize;
->>>>>>> parent of 4845cfe... Merge pull request #1 from TeleBooth/kRPC-integration
 	}
 }
 
@@ -488,11 +486,12 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 {
 	// once we've completed the transmit, prepare for the response
-	responseSize = responseSizeTmp;
+	if(!passthroughMode)
+		responseSize = responseSizeTmp;
 	responseSizeTmp = 0;
 	responsePtr = 0;
   /* Initiate next USB packet transfer once UART completes transfer (transmitting data over Tx line) */
-  USBD_CDC_ReceivePacket(&hUsbDeviceFS);
+  //USBD_CDC_ReceivePacket(&hUsbDeviceFS);
   //Toggle_Leds();
 }
 
@@ -577,6 +576,15 @@ static void ComPort_Config(void)
 
   /* Start reception: provide the buffer pointer with offset and the buffer size */
   HAL_UART_Receive_IT(&huart2, (uint8_t *)(UserTxBufferFS + UserTxBufPtrIn), 1);
+}
+
+/**
+ * Used for writing error outputs for kRPC
+ */
+void USB_CDC_Wrapper(uint32_t size) {
+	USBD_CDC_SetTxBuffer(&hUsbDeviceFS, UserTxBufferFS, size);
+	while(USBD_CDC_TransmitPacket(&hUsbDeviceFS) == USBD_BUSY);
+	return;
 }
 
 /**

@@ -23,11 +23,8 @@
 #include "usb_device.h"
 #include "esp8266.h"
 #include "task_list.h"
-<<<<<<< HEAD
 #include <pb_encode.h>
 #include "krpc.pb.h"
-=======
->>>>>>> parent of 4845cfe... Merge pull request #1 from TeleBooth/kRPC-integration
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -144,12 +141,11 @@ int main(void)
   		while (1)
   			;
   	}
-    if (esp8266_connect_TCP(&huart2, "172.20.10.2", 10000)) {
+   if (esp8266_connect_TCP(&huart2, "98.223.235.63", 50000)) {
   		while (1)
   			;
   	}
 
-<<<<<<< HEAD
    //HAL_Delay(1000);
 
 
@@ -184,13 +180,12 @@ int main(void)
     while(1)
     	;
 
-=======
->>>>>>> parent of 4845cfe... Merge pull request #1 from TeleBooth/kRPC-integration
   	// TODO: connect to the kRPC server
-  	// 1. port krpc-cnano into this project
-  	// 	1.1 writing the four functions in "communication.h"
-  	//	1.2 writing the iostream callback functions
-  	// 2. get the initialization sequence in this code
+	/**
+	 * Why is the server receiving garbage?
+	 * Investigate the single return byte?
+	 * See why the decode process is overrunning the buffer?
+	 */
 
   	init_task_list();
 
