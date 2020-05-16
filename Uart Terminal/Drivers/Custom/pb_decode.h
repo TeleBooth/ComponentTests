@@ -45,11 +45,19 @@ struct pb_istream_s
 #endif
 };
 
+<<<<<<< HEAD
 #ifndef PB_NO_ERRMSG
 #define PB_ISTREAM_EMPTY {0,0,0,0}
 #else
 #define PB_ISTREAM_EMPTY {0,0,0}
 #endif
+=======
+struct stream_data_s
+{
+	UART_HandleTypeDef * huart;
+	uint8_t * inBufPtr;
+};
+>>>>>>> parent of 4845cfe... Merge pull request #1 from TeleBooth/kRPC-integration
 
 /***************************
  * Main decoding functions *
