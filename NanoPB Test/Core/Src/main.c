@@ -25,9 +25,9 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
-#include "encoders.h"
-#include "decoders.h"
-#include "types.h"
+#include "pb_encode.h"
+#include "pb_decode.h"
+#include "krpc.pb.h"
 #include "esp8266.h"
 #include "task_list.h"
 
@@ -40,22 +40,39 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+bool decode_string(pb_istream_t *stream, const pb_field_t *field, void **arg);
+bool encode_string(pb_ostream_t *stream, const pb_field_t *field,
+		void *const*arg);
+bool decode_values(pb_istream_t *stream, const pb_field_t *field, void **arg);
 
-// writing the bytes after they've been encoded
-bool write(uint8_t * buf, uint8_t count) {
-	HAL_StatusTypeDef result;
-	while ((result = HAL_UART_Transmit(&huart2, buf, count, 200)) != HAL_OK);
-	HAL_Delay(5);
-	return true;
-}
+typedef struct {
+	uint8_t *message_string;
+	// include other fields as I need them
+	uint8_t message_len;
+} string_context_t;
 
-// reading the bytes to decode later
-bool read(uint8_t * buf, size_t count) {
-	HAL_StatusTypeDef result;
-	result = HAL_UART_Receive(&huart2, buf, count, 2000);
-	return result;
-}
+typedef struct {
+	krpc_schema_ProcedureCall *calls;
+	// include other fields as I need them
+	uint8_t numCalls;
+} proccall_context_t;
 
+typedef struct {
+	uint32_t service_id;
+	uint32_t procedure_id;
+} procserv_context_t;
+
+typedef struct {
+	void *valueDest;
+	pb_msgdesc_t *valueField;
+} procval_context_t;
+
+typedef struct {
+	void **valueDests;
+	krpc_schema_ProcedureResult *resultDests;
+	pb_msgdesc_t **resultFields;
+	uint32_t numResults;
+} procresult_context_t;
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -67,6 +84,13 @@ bool read(uint8_t * buf, size_t count) {
 TIM_HandleTypeDef htim3;
 UART_HandleTypeDef huart2;
 DMA_HandleTypeDef hdma_usart2_tx;
+
+uint8_t receive_buf[30];
+string_context_t decode_ctx =
+		{ .message_len = 0, .message_string = receive_buf };
+
+pb_callback_t decode_string_callback = { .funcs = { &decode_string }, .arg =
+		&decode_ctx };
 
 /* USER CODE BEGIN PV */
 
@@ -85,9 +109,97 @@ static void MX_USART2_UART_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+bool encode_string(pb_ostream_t *stream, const pb_field_t *field,
+		void *const*arg) {
+	string_context_t *ctx = (string_context_t*) *arg;
+	uint8_t *str = ctx->message_string;
+
+	if (!pb_encode_tag_for_field(stream, field))
+		return false;
+
+	return pb_encode_string(stream, str, strlen((char*) str));
+}
+
+bool decode_string(pb_istream_t *stream, const pb_field_t *field, void **arg) {
+	string_context_t *ctx = (string_context_t*) *arg;
+	uint8_t *str = ctx->message_string;
+	// read until we read a null character
+	while (true) {
+		if (!pb_read(stream, str + ctx->message_len, 1)) {
+			return false;
+		}
+		if (str[ctx->message_len] == '\0') {
+			ctx->message_len++;
+			break;
+		}
+		ctx->message_len++;
+	}
+	return true;
+}
+
+bool encode_calls(pb_ostream_t *stream, const pb_field_t *field,
+		void *const*arg) {
+	proccall_context_t *calls = (proccall_context_t*) *arg;
+
+	if (!pb_encode_tag_for_field(stream, field))
+		return false;
+	int i;
+	bool result = false;
+	for (i = 0; i < calls->numCalls; i++) {
+		result = pb_encode_submessage(stream, krpc_schema_ProcedureCall_fields,
+				&calls->calls[i]);
+		if (!result)
+			return false;
+	}
+	return true;
+}
+
+bool decode_results(pb_istream_t *stream, const pb_field_t *field, void **arg) {
+	procresult_context_t *results = (procresult_context_t*) *arg;
+	procval_context_t value;
+	int i;
+	bool result = false;
+	for (i = 0; i < results->numResults; i++) {
+		value.valueDest = results->valueDests[i];
+		value.valueField = results->resultFields[i];
+		results->resultDests[i].value.funcs.decode = &decode_values;
+		results->resultDests[i].value.arg = &value;
+		result = pb_decode(stream, krpc_schema_ProcedureResult_fields,
+				&results->resultDests[i]);
+		if (!result)
+			return false;
+	}
+	return true;
+}
+
+bool decode_values(pb_istream_t *stream, const pb_field_t *field, void **arg) {
+	procval_context_t *value = (procval_context_t*) *arg;
+	return pb_decode(stream, value->valueField, value->valueDest);
+}
+
+bool decode_error(pb_istream_t *stream, const pb_field_t *field,
+		void *const*arg) {
+	return false;
+}
+
+bool read(pb_istream_t *stream, uint8_t *buf, size_t count) {
+	UART_HandleTypeDef *huart = (UART_HandleTypeDef*) stream->state;
+	HAL_StatusTypeDef result;
+	if ((result = HAL_UART_Receive(huart, buf, count, 5000)) != HAL_OK) {
+		return false;
+	}
+	return true;
+}
+
+bool frame_dummy() {
+	return false;
+}
+
 bool krpc_connect(char *clientName) {
 	krpc_schema_ConnectionRequest mymessage;
-	mymessage.client_name.arg = (uint8_t*) clientName;
+	string_context_t ctx;
+	ctx.message_string = (uint8_t*) clientName;
+	mymessage.client_name.arg = &ctx;
 	mymessage.client_name.funcs.encode = &encode_string;
 	mymessage.type = krpc_schema_ConnectionRequest_Type_RPC;
 	mymessage.client_identifier.funcs.encode = 0;
@@ -96,54 +208,43 @@ bool krpc_connect(char *clientName) {
 	pb_encode_delimited(&stream, krpc_schema_ConnectionRequest_fields,
 			&mymessage);
 
-	write(buffer, stream.bytes_written);
+	while (HAL_UART_Transmit_DMA(&huart2, buffer, stream.bytes_written)
+			!= HAL_OK)
+		;
 	//HAL_Delay(50);
 
 	// Receive response message
 	krpc_schema_ConnectionResponse connRe;
-	char responseMsg[40];
-	connRe.message.funcs.decode = &decode_string;
-	connRe.message.arg = responseMsg;
+	connRe.message = decode_string_callback;
 	connRe.client_identifier.funcs.decode = 0;
 
-	// make the stream for sizing
-	size_t size = 0;
-	if (read(responseMsg, 1) != HAL_OK) {
-					while (1)
-						;
-		}
-	pb_istream_t uartIn = pb_istream_from_buffer(responseMsg, 1);
+	pb_istream_t uartIn = { &read, &huart2, 30 };
+	uint64_t size = 0;
 	pb_decode_varint(&uartIn, &size);
-	if (read(responseMsg, size) != HAL_OK) {
+	if (!read(&uartIn, buffer, size)) {
 		while (1)
 			;
 	}
-	// remake the stream with the real size
-	uartIn = pb_istream_from_buffer(responseMsg, size);
+	uartIn = pb_istream_from_buffer(buffer, size);
 	pb_decode(&uartIn, krpc_schema_ConnectionResponse_fields, &connRe);
 	return true;
 
 }
 
-bool krpc_build_calls(procserv_context_t *procSerCtx, uint8_t numContexts,
-		krpc_schema_ProcedureCall *calls, procarg_context_t *argCtx) {
+bool krpc_build_calls(procserv_context_t *contexts, uint8_t numContexts,
+		krpc_schema_ProcedureCall *calls) {
 	int i = 0;
 	for (i = 0; i < numContexts; i++) {
-		char emptystr[] = "";
-		calls[i].procedure.arg = emptystr;
+		string_context_t service = { (uint8_t*) "KRPC", 4 };
+		string_context_t procedure = { (uint8_t*) "GetStatus", 9 };
+		calls[i].procedure.arg = &procedure;
 		calls[i].procedure.funcs.encode = &encode_string;
-		calls[i].service.arg = emptystr;
+		calls[i].service.arg = &service;
 		calls[i].service.funcs.encode = &encode_string;
-		calls[i].procedure_id = procSerCtx[i].procedure_id;
-		calls[i].service_id = procSerCtx[i].service_id;
-		if (procSerCtx[i].hasArgs){
-		calls[i].arguments.arg = &argCtx[i];
-		calls[i].arguments.funcs.encode = &encode_args;
-		}
-		else{
-			calls[i].arguments.arg = 0;
-			calls[i].arguments.funcs.encode = 0;
-		}
+		calls[i].procedure_id = contexts[0].procedure_id;
+		calls[i].service_id = contexts[0].service_id;
+		calls[i].arguments.arg = 0;
+		calls[i].arguments.funcs.encode = 0;
 	}
 	return true;
 }
@@ -151,211 +252,39 @@ bool krpc_build_calls(procserv_context_t *procSerCtx, uint8_t numContexts,
 bool krpc_invoke(krpc_schema_Request *request, proccall_context_t *calls) {
 	request->calls.arg = calls;
 	request->calls.funcs.encode = &encode_calls;
-	uint8_t buffer[40];
+	char buffer[40];
 	pb_ostream_t stream = pb_ostream_from_buffer(buffer, sizeof(buffer));
 	pb_encode_delimited(&stream, krpc_schema_Request_fields, request);
-	write(buffer, stream.bytes_written);
+	while (HAL_UART_Transmit_DMA(&huart2, buffer, stream.bytes_written)
+			!= HAL_OK)
+		;
+	HAL_Delay(20);
 	return true;
 }
 
 bool krpc_response(krpc_schema_Response *response,
-		procresult_context_t *results) {
+	procresult_context_t *results) {
+	pb_istream_t uartIn = { &read, &huart2, 30 };
+	size_t size = 0;
+	size_t buf_size = 0;
+	uint8_t buffer[80];
 	response->results.funcs.decode = &decode_results;
 	response->results.arg = results;
 	response->error.service.funcs.decode = 0;
 	response->error.name.funcs.decode = 0;
 	response->error.description.funcs.decode = 0;
 
-	uint8_t buffer[80];
-	pb_istream_t uartIn = pb_istream_from_buffer(buffer, 1);
-	size_t size = 0;
-	if (read(buffer, 1) != HAL_OK) {
-				while (1)
-					;
-	}
+
 	pb_decode_varint(&uartIn, &size);
-	if (read(buffer, size) != HAL_OK) {
-			while (1)
-				;
+	buf_size = size;
+	if (!read(&uartIn, buffer, size)) {
+		while (1)
+			;
 	}
-	// remake the stream with the real size
-	uartIn = pb_istream_from_buffer(buffer, size);
-	pb_decode(&uartIn, krpc_schema_Response_fields, response);
-	return true;
+	uartIn = pb_istream_from_buffer(buffer, buf_size);
+	return pb_decode(&uartIn, krpc_schema_Response_fields, response);
 }
 
-bool krpc_get_Status(krpc_schema_Status *status) {
-	// send the request
-	krpc_schema_Request request;
-	krpc_schema_ProcedureCall calls[2];
-	proccall_context_t callCtx;
-	procarg_context_t argCtx[1];
-	procserv_context_t contexts[2] = { { 1, 3, false } };
-	callCtx.calls = calls;
-	callCtx.numCalls = 1;
-	krpc_build_calls(contexts, 1, calls, argCtx);
-	krpc_invoke(&request, &callCtx);
-
-	// get the response
-	// receive status response
-	krpc_schema_Response response;
-
-
-	// store the fields in the proper context
-	procresult_context_t resultCtx;
-	resultCtx.numResults = 1;
-
-	krpc_schema_ProcedureResult results[1];
-	resultCtx.resultDests = results;
-
-	char version_str[6];
-	status->version.funcs.decode = &decode_string;
-	status->version.arg = version_str;
-	void *valueDests[1] = { status };
-	resultCtx.valueDests = valueDests;
-
-	pb_msgdesc_t *valueFields[1] = { krpc_schema_Status_fields };
-	resultCtx.resultFields = valueFields;
-
-	krpc_response(&response, &resultCtx);
-	return true;
-}
-
-bool krpc_get_ClientName(char *client_name) {
-	krpc_schema_Request request;
-	krpc_schema_ProcedureCall calls[2];
-	proccall_context_t callCtx;
-	procarg_context_t argCtx[1];
-	procserv_context_t contexts[2] = { { 1, 2, false } };
-	callCtx.calls = calls;
-	callCtx.numCalls = 1;
-	krpc_build_calls(contexts, 1, calls, 0);
-	krpc_invoke(&request, &callCtx);
-
-	// receive client_name response
-	krpc_schema_Response response;
-
-	// store the fields in the proper context
-	procresult_context_t resultCtx;
-	krpc_schema_ProcedureResult results[1];
-	resultCtx.numResults = 1;
-	resultCtx.resultDests = results;
-	void *valueDests[1] = { &client_name };
-	resultCtx.valueDests = valueDests;
-	pb_msgdesc_t *valueFields[1] = { STRING };
-	resultCtx.resultFields = valueFields;
-	krpc_response(&response, &resultCtx);
-	return true;
-}
-
-bool krpc_set_Paused(bool *paused) {
-	krpc_schema_Request request;
-	krpc_schema_ProcedureCall calls[2];
-	proccall_context_t callCtx;
-	procarg_context_t argCtx[1];
-	procserv_context_t contexts[2] = { { 1, 2, false } };
-	callCtx.calls = calls;
-	callCtx.numCalls = 1;
-	krpc_build_calls(contexts, 1, calls, 0);
-	krpc_invoke(&request, &callCtx);
-
-	// receive client_name response
-	krpc_schema_Response response;
-
-	// store the fields in the proper context
-	procresult_context_t resultCtx;
-	krpc_schema_ProcedureResult results[1];
-	resultCtx.numResults = 1;
-	resultCtx.resultDests = results;
-	void *valueDests[1] = { &client_name };
-	resultCtx.valueDests = valueDests;
-	pb_msgdesc_t *valueFields[1] = { STRING };
-	resultCtx.resultFields = valueFields;
-	krpc_response(&response, &resultCtx);
-	return true;
-}
-
-
-bool krpc_get_CurrentGameScene(krpc_schema_Procedure_GameScene *game_scene) {
-	krpc_schema_Request request;
-	krpc_schema_ProcedureCall calls[2];
-	proccall_context_t callCtx;
-	procarg_context_t argCtx[1];
-	procserv_context_t contexts[2] = { { 1, 11, false } };
-	callCtx.calls = calls;
-	callCtx.numCalls = 1;
-	krpc_build_calls(contexts, 1, calls, argCtx);
-	krpc_invoke(&request, &callCtx);
-
-	// receive client_name response
-	krpc_schema_Response response;
-
-	// store the fields in the proper context
-	procresult_context_t resultCtx;
-	krpc_schema_ProcedureResult results[1];
-	resultCtx.numResults = 1;
-	resultCtx.resultDests = results;
-	void *valueDests[1] = { game_scene };
-	resultCtx.valueDests = valueDests;
-	pb_msgdesc_t *valueFields[1] = { ENUM };
-	resultCtx.resultFields = valueFields;
-	krpc_response(&response, &resultCtx);
-	// for some reason we need to shift it over
-	*game_scene = *game_scene >> 1;
-	return true;
-}
-
-bool krpc_SpaceCenter_ActiveVessel(krpc_SpaceCenter_Vessel_t * vessel){
-	krpc_schema_Request request;
-	krpc_schema_ProcedureCall calls[1];
-	proccall_context_t callCtx;
-	procarg_context_t argCtx[1];
-	procserv_context_t contexts[1] = { { 2, 22, false } };
-	callCtx.calls = calls;
-	callCtx.numCalls = 1;
-	krpc_build_calls(contexts, 1, calls, argCtx);
-	krpc_invoke(&request, &callCtx);
-
-	// receive client_name response
-	krpc_schema_Response response;
-
-	// store the fields in the proper context
-	procresult_context_t resultCtx;
-	krpc_schema_ProcedureResult results[1];
-	resultCtx.numResults = 1;
-	resultCtx.resultDests = results;
-	void *valueDests[1] = { vessel };
-	resultCtx.valueDests = valueDests;
-	pb_msgdesc_t *valueFields[1] = { OBJECT };
-	resultCtx.resultFields = valueFields;
-	krpc_response(&response, &resultCtx);
-	return true;
-}
-
-bool krpc_SpaceCenter_SetVesselName(krpc_SpaceCenter_Vessel_t vessel, char * name){
-	krpc_schema_Request request;
-	krpc_schema_ProcedureCall calls[1];
-	krpc_schema_Argument vesselName;
-	krpc_schema_Argument vesselInstance;
-	krpc_schema_Argument *args[2];
-	proccall_context_t callCtx;
-	procarg_context_t argCtx[1];
-	procserv_context_t contexts[1] = { { 2, 832, true } };
-	callCtx.calls = calls;
-	callCtx.numCalls = 1;
-	vesselInstance.position = 0;
-	vesselInstance.value.funcs.encode = &encode_uint64;
-	vesselInstance.value.arg = &vessel;
-	vesselName.position = 1;
-	vesselName.value.funcs.encode = &encode_string;
-	vesselName.value.arg = name;
-	args[0] = &vesselInstance;
-	args[1] = &vesselName;
-	argCtx[0].args = args;
-	argCtx[0].numArgs = 2;
-	krpc_build_calls(contexts, 1, calls, argCtx);
-	krpc_invoke(&request, &callCtx);
-}
 /* USER CODE END 0 */
 
 /**
@@ -411,7 +340,7 @@ int main(void) {
 	// Connect to server
 	krpc_connect("hellloooo");
 
-	HAL_Delay(500);
+	HAL_Delay(1000);
 
 	/*// Send a get_Status request
 	 krpc_schema_Request request;
@@ -424,26 +353,35 @@ int main(void) {
 	 krpc_invoke(&request, &callCtx);*/
 
 	// Send a get_Status request
+	krpc_schema_Request request;
+	krpc_schema_ProcedureCall calls[2];
+	proccall_context_t callCtx;
+	procserv_context_t contexts[2] = { { 1, 3 } };
+	callCtx.calls = calls;
+	callCtx.numCalls = 1;
+	krpc_build_calls(contexts, 1, calls);
+	krpc_invoke(&request, &callCtx);
+
+	// receive status response
+	krpc_schema_Response response;
+
+	// store the fields in the proper context
+	procresult_context_t resultCtx;
+	resultCtx.numResults = 1;
+
+	krpc_schema_ProcedureResult results[1];
+	resultCtx.resultDests = results;
+
 	krpc_schema_Status status;
-	krpc_get_Status(&status);
+	status.version.funcs.decode = 0;
+	//status.version = decode_string_callback;
+	void *valueDests[1] = { &status };
+	resultCtx.valueDests = valueDests;
 
-	HAL_Delay(100);
+	pb_msgdesc_t *valueFields[1] = { krpc_schema_Status_fields };
+	resultCtx.resultFields = valueFields;
 
-	//char client_name[40]; // the clientID bytes will be stored here
-	//krpc_get_ClientName(client_name);
-
-	krpc_schema_Procedure_GameScene game_scene;
-	krpc_get_CurrentGameScene(&game_scene);
-
-	HAL_Delay(100);
-
-	krpc_SpaceCenter_Vessel_t vessel;
-	krpc_SpaceCenter_ActiveVessel(&vessel);
-
-	HAL_Delay(500);
-
-	krpc_SpaceCenter_SetVesselName(vessel, "jebby");
-
+	krpc_response(&response, &resultCtx);
 
 	/* USER CODE END 2 */
 
