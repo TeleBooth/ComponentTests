@@ -78,6 +78,7 @@ int main(void)
 {
   /* USER CODE BEGIN 1 */
 	uint8_t buffer[128];
+	double altitude;
 
   /* USER CODE END 1 */
 
@@ -116,6 +117,7 @@ int main(void)
   		while (1)
   			;
   	}
+  	//HAL_Delay(1000);
    if (esp8266_connect_TCP(&huart2, "98.223.235.63", 50000)) {
   		while (1)
   			;
@@ -133,30 +135,48 @@ int main(void)
 			;
 	}
 
-   //HAL_Delay(1000);
+   HAL_Delay(100);
 
    krpc_schema_Status status;
    krpc_KRPC_GetStatus(&connection,&status);
+   HAL_Delay(100);
+
+   krpc_KRPC_GameScene_t gameScene;
+   krpc_KRPC_CurrentGameScene(&connection, &gameScene);
+   HAL_Delay(100);
 
    krpc_SpaceCenter_Vessel_t vessel;
    krpc_SpaceCenter_ActiveVessel(&connection,&vessel);
-   HAL_Delay(1000);
+   HAL_Delay(100);
 
-   krpc_SpaceCenter_Vessel_set_Name(&connection,vessel, "Helloooooo");
-   HAL_Delay(1000);
+   krpc_SpaceCenter_Vessel_set_Name(&connection, vessel, "Helloooooo");
+   HAL_Delay(100);
 
-    // Get a handle to a Flight object for the vessel
-    /*krpc_SpaceCenter_Flight_t flight;
-    krpc_SpaceCenter_Vessel_Flight(connection, &flight, vessel, KRPC_NULL);
-    HAL_Delay(2500);
-    // Get the altiude
-    double altitude;
-    krpc_SpaceCenter_Flight_MeanAltitude(connection, &altitude, flight);
-    HAL_Delay(2500);
+    // Pre-flight prep
+    krpc_SpaceCenter_Flight_t flight;
+    krpc_SpaceCenter_Control_t control;
+    krpc_SpaceCenter_AutoPilot_t autopilot;
+    krpc_SpaceCenter_Vessel_Flight(&connection, &flight, vessel, KRPC_NULL);
+    HAL_Delay(25);
+    krpc_SpaceCenter_Vessel_Control(&connection, &control, vessel);
+    HAL_Delay(25);
+    krpc_SpaceCenter_Vessel_AutoPilot(&connection, &autopilot, vessel);
+    HAL_Delay(25);
+    krpc_SpaceCenter_Control_set_SAS(&connection, control, true);
+    HAL_Delay(25);
+    krpc_SpaceCenter_Control_set_RCS(&connection, control, true);
+    HAL_Delay(25);
+    krpc_SpaceCenter_Control_set_Throttle(&connection, control, 1);
+    HAL_Delay(25);
+
+    // Launch
+
+
     //printf("%.2f\n", altitude);
-	*/
-    while(1)
-    	;
+    while(1){
+    	krpc_SpaceCenter_Flight_MeanAltitude(&connection, &altitude, flight);
+    	HAL_Delay(250);
+    }
 
   	// TODO: connect to the kRPC server
 	/**
