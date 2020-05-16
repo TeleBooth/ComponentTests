@@ -49,6 +49,8 @@ struct pb_istream_s
 struct stream_data_s
 {
 	UART_HandleTypeDef * huart;
+	uint8_t* buf;
+	uint8_t bytes_written;
 };
 
 /***************************

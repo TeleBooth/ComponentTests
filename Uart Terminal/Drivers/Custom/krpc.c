@@ -18,15 +18,17 @@ pb_istream_t krpc_pb_istream_from_connection(krpc_connection_t * connection);
 krpc_error_t krpc_connect(krpc_connection_t * connection, const char * client_name) {
   {
     // Send connection request message
-    krpc_schema_MultiplexedRequest request = krpc_schema_MultiplexedRequest_init_default;
-    request.connection_request.type = krpc_schema_ConnectionRequest_Type_RPC;
-    request.connection_request.client_name.funcs.encode = &krpc_encode_callback_cstring;
-    request.connection_request.client_name.arg = (void*)client_name;
+    krpc_schema_ConnectionRequest request = krpc_schema_ConnectionRequest_init_default;
+    request.type = krpc_schema_ConnectionRequest_Type_RPC;
+    request.client_name.funcs.encode = &krpc_encode_callback_cstring;
+    request.client_name.arg = (void*)client_name;
     pb_ostream_t stream = krpc_pb_ostream_from_connection(connection);
-    if (!pb_encode_delimited(&stream, krpc_schema_MultiplexedRequest_fields, &request)) {
+    if (!pb_encode_delimited(&stream, krpc_schema_Request_fields, &request)) {
       krpc_close(connection);
       KRPC_RETURN_STREAM_ERROR(ENCODING_FAILED, "failed to encode connection request", &stream);
     }
+    while((HAL_UART_Transmit(connection->huart, connection->buf, connection->bytes_written, 200)) == HAL_BUSY);
+    HAL_Delay(200);
   }
 
   {

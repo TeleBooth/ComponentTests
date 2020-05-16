@@ -45,11 +45,14 @@ krpc_error_t krpc_read(krpc_connection_t * connection, uint8_t * buf, size_t cou
 }
 
 krpc_error_t krpc_write(krpc_connection_t * connection, uint8_t * buf, size_t count) {
-	HAL_StatusTypeDef result;
-	while((result = HAL_UART_Transmit_DMA(connection->huart, buf, count)) == HAL_BUSY);
-	HAL_Delay(10);
-	if (result == HAL_ERROR)
-		KRPC_RETURN_ERROR(IO, "write failed");
+	int i;
+	// store the previous location for writing
+	int prevLoc = connection->bytes_written;
+	for(i = 0; i < count; i++){
+		connection->buf[prevLoc + i] = buf[i];
+	}
+	// set the new location
+	connection->bytes_written += i;
 	return KRPC_OK;
 }
 

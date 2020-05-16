@@ -53,7 +53,7 @@ UART_HandleTypeDef huart2;
 DMA_HandleTypeDef hdma_usart2_tx;
 
 /* USER CODE BEGIN PV */
-static uint8_t buffer[BUF_SIZE + 1];
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -77,6 +77,7 @@ static void MX_GPIO_Init(void);
 int main(void)
 {
   /* USER CODE BEGIN 1 */
+	uint8_t buffer[128];
 
   /* USER CODE END 1 */
 
@@ -124,6 +125,8 @@ int main(void)
 
    // Initialize the kRPC connection
    	connection.huart = &huart2;
+   	connection.buf = buffer;
+   	connection.bytes_written = 0;
 
 	if(krpc_connect(&connection,"hello") != KRPC_OK) {
 		while(1)
