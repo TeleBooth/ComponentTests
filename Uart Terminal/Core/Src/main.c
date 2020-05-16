@@ -106,7 +106,7 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   // this delay gives you enough time to connect the STM to realterm
-  HAL_Delay(1000);
+  HAL_Delay(500);
 
   if (esp8266_init(&huart2)){
   		while (1)
@@ -117,7 +117,7 @@ int main(void)
   		while (1)
   			;
   	}
-  	//HAL_Delay(1000);
+  	HAL_Delay(2000);
    if (esp8266_connect_TCP(&huart2, "98.223.235.63", 50000)) {
   		while (1)
   			;
