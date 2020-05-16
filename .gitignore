@@ -59,3 +59,11 @@ local.properties
 # Typically, this file would be tracked if it contains build/dependency configurations:
 #.project
 .metadata/.ide.log
+*.o
+*.d
+*.su
+*.list
+*.map
+*.mk
+*.bin
+NanoPB Test/Debug/makefile
