@@ -248,7 +248,7 @@ bool krpc_get_ClientName(char *client_name) {
 	return true;
 }
 
-bool krpc_set_Paused(bool *paused) {
+/*bool krpc_set_Paused(bool *paused) {
 	krpc_schema_Request request;
 	krpc_schema_ProcedureCall calls[2];
 	proccall_context_t callCtx;
@@ -273,7 +273,7 @@ bool krpc_set_Paused(bool *paused) {
 	resultCtx.resultFields = valueFields;
 	krpc_response(&response, &resultCtx);
 	return true;
-}
+}*/
 
 
 bool krpc_get_CurrentGameScene(krpc_schema_Procedure_GameScene *game_scene) {
@@ -355,6 +355,7 @@ bool krpc_SpaceCenter_SetVesselName(krpc_SpaceCenter_Vessel_t vessel, char * nam
 	argCtx[0].numArgs = 2;
 	krpc_build_calls(contexts, 1, calls, argCtx);
 	krpc_invoke(&request, &callCtx);
+	return true;
 }
 /* USER CODE END 0 */
 
@@ -409,7 +410,7 @@ int main(void) {
 	}
 
 	// Connect to server
-	krpc_connect("hellloooo");
+	krpc_connect("hello");
 
 	HAL_Delay(500);
 
