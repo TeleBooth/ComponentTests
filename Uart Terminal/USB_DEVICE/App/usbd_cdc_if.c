@@ -432,19 +432,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 			}
 		}
 	}
-	// otherwise, if we're in passthrough mode, we just send a new CDC packet whenever the Rx finishes and there is data available
 	else if (passthroughMode) {
-		// for now, do nothing if it's in passthrough mode
-		/*
-		 if((UserTxBufPtrIn != 0)) {
-		 buffsize = UserTxBufPtrIn;
-
-		 USBD_CDC_SetTxBuffer(&hUsbDeviceFS, UserTxBufferFS, buffsize);
-		 if(USBD_CDC_TransmitPacket(&hUsbDeviceFS) == USBD_OK) {
-		 UserTxBufPtrIn = 0;
-		 }
-		 }*/
-
+		// we have nothing to do here in passthrough mode
 	}
 }
 
@@ -475,10 +464,6 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
 				1);
 	} else {
 		// if we're in passthrough mode, we can't keep intercepting each byte without breaking the kRPC functionality
-		// so we just set this pointer so that we can output through the CDC and then continue like a regular UART
-		//UserTxBufPtrIn += huart->RxXferSize;
-		//responseSize = huart->RxXferCount;
-		//assert(responseSize > -1);
 	}
 }
 
@@ -497,6 +482,8 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
 		/* Initiate next USB packet transfer once UART completes transfer (transmitting data over Tx line) */
 		USBD_CDC_ReceivePacket(&hUsbDeviceFS);
 	}
+	// if we're in passthrough mode, we need to start the first CDC_Receive to begin the process of
+	// accepting inputs from the Xbox Controller Script
 	if (passthroughMode && waitingFirstCdc){
 		waitingFirstCdc = 0;
 		USBD_CDC_ReceivePacket(&hUsbDeviceFS);
@@ -574,7 +561,7 @@ static void ComPort_Config(void) {
 		Error_Handler();
 	}
 
-	/* Start reception: provide the buffer pointer with offset and the buffer size */
+	// Start reception: provide the buffer pointer with offset and the buffer size
 	HAL_UART_Receive_IT(&huart2, (uint8_t*) (UserTxBufferFS + UserTxBufPtrIn),
 			1);
 }
