@@ -294,11 +294,11 @@ void krpc_Next_Stage(controller_tuple_t *currentCommand) {
 	krpc_list_object_t vessels;
 
 	// pre-flight
-	krpc_SpaceCenter_Control_set_SAS(&connection,
-			*((krpc_SpaceCenter_Control_t*) controlCtx.control), true);
+	//krpc_SpaceCenter_Control_set_SAS(&connection,
+	//		*((krpc_SpaceCenter_Control_t*) controlCtx.control), true);
 	//HAL_Delay(50);
-	krpc_SpaceCenter_Control_set_RCS(&connection,
-			*((krpc_SpaceCenter_Control_t*) controlCtx.control), true);
+	//krpc_SpaceCenter_Control_set_RCS(&connection,
+	//		*((krpc_SpaceCenter_Control_t*) controlCtx.control), true);
 	//HAL_Delay(50);
 	krpc_SpaceCenter_Control_set_Throttle(&connection,
 			*((krpc_SpaceCenter_Control_t*) controlCtx.control), 1);

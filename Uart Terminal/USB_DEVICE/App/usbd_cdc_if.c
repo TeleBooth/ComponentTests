@@ -571,8 +571,7 @@ static void ComPort_Config(void) {
  */
 void USB_CDC_Wrapper(uint32_t size) {
 	USBD_CDC_SetTxBuffer(&hUsbDeviceFS, UserTxBufferFS, size);
-	while (USBD_CDC_TransmitPacket(&hUsbDeviceFS) == USBD_BUSY)
-		;
+	USBD_CDC_TransmitPacket(&hUsbDeviceFS);
 	return;
 }
 
@@ -586,7 +585,7 @@ static void TIM_Config(void) {
 	TimHandle.Instance = TIMx;
 
 	/* Initialize TIM3 peripheral as follows:
-	 + Period = 10000 - 1
+	 + Period = 5000 - 1
 	 + Prescaler = ((SystemCoreClock/2)/10000) - 1
 	 + ClockDivision = 0
 	 + Counter direction = Up

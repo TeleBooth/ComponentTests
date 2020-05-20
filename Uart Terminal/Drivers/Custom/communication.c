@@ -25,7 +25,7 @@ krpc_error_t krpc_close(krpc_connection_t * connection) {
 
 int read (krpc_connection_t * connection, uint8_t * buf, size_t count){
 	int result = HAL_BUSY;
-	result = HAL_UART_Receive(connection->huart, buf, count, 5000);
+	result = HAL_UART_Receive(connection->huart, buf, count, 1000);
 	if (result == HAL_OK)
 		return connection->huart->RxXferSize - connection->huart->RxXferCount;
 	else
