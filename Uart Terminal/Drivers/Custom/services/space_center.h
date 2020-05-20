@@ -1,3 +1,5 @@
+#ifndef SPACECENTER_DEFINED
+#define SPACECENTER_DEFINED
 #pragma once
 
 #include <decoder.h>
@@ -22879,4 +22881,6 @@ inline krpc_error_t krpc_SpaceCenter_Wheel_set_TractionControlEnabled(krpc_conne
 
 #ifdef __cplusplus
 }  // extern "C"
+#endif
+
 #endif

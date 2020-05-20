@@ -22,6 +22,23 @@ typedef struct task_node {
 	uint32_t repeat_interval;
 } TASK_NODE;
 
+#define MAX_COMMANDS 10
+
+typedef struct {
+	uint8_t value;
+	uint8_t btnBuf[2];
+} controller_tuple_t;
+
+typedef struct {
+	uint8_t inPos;
+	uint8_t outPos;
+	controller_tuple_t controlQueue[MAX_COMMANDS];
+	void *control;
+	void *vessel;
+	void *gameScene;
+	//uint8_t bufSize;
+} controller_handler_context_t;
+
 void init_task_list(void);
 uint8_t is_empty(void);
 uint32_t bring_current(void);

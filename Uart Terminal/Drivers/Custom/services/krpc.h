@@ -1,3 +1,5 @@
+#ifndef KRPC_DEFINED
+#define KRPC_DEFINED
 #pragma once
 
 #include <decoder.h>
@@ -604,6 +606,8 @@ krpc_error_t krpc_KRPC_Type_Int(krpc_connection_t * connection, krpc_KRPC_Type_t
 krpc_error_t krpc_KRPC_Type_String(krpc_connection_t * connection, krpc_KRPC_Type_t * returnValue);
 
 // Implementation
+
+//#define KRPC_DEFINED
 
 #ifndef KRPC_IMPL_TYPE_DICTIONARY_STRING_OBJECT
 #define KRPC_IMPL_TYPE_DICTIONARY_STRING_OBJECT
@@ -2225,4 +2229,6 @@ inline krpc_error_t krpc_KRPC_Type_String(krpc_connection_t * connection, krpc_K
 
 #ifdef __cplusplus
 }  // extern "C"
+#endif
+
 #endif

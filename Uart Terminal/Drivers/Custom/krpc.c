@@ -29,7 +29,7 @@ krpc_error_t krpc_connect(krpc_connection_t * connection, const char * client_na
       KRPC_RETURN_STREAM_ERROR(ENCODING_FAILED, "failed to encode connection request", &stream);
     }
     while((HAL_UART_Transmit(connection->huart, connection->buf, connection->bytes_written, 200)) == HAL_BUSY);
-    HAL_Delay(20);
+    //HAL_Delay(10);
   }
 
   {
@@ -47,6 +47,7 @@ krpc_error_t krpc_connect(krpc_connection_t * connection, const char * client_na
       KRPC_RETURN_ERROR(CONNECTION_FAILED, "connection denied by server");
     }
   }
+  HAL_Delay(100);
   return KRPC_OK;
 }
 
@@ -76,7 +77,7 @@ krpc_error_t krpc_invoke(krpc_connection_t * connection, krpc_schema_ProcedureRe
     if (!pb_encode_delimited(&ostream, krpc_schema_Request_fields, &m_request))
       KRPC_RETURN_STREAM_ERROR(ENCODING_FAILED, "failed to encode request message", &ostream);
     while((HAL_UART_Transmit(connection->huart, connection->buf, connection->bytes_written, 200)) == HAL_BUSY);
-    HAL_Delay(20);
+    //HAL_Delay(10);
   }
 
   {
@@ -105,6 +106,8 @@ krpc_error_t krpc_invoke(krpc_connection_t * connection, krpc_schema_ProcedureRe
       KRPC_RETURN_ERROR(NO_RESULTS, "response message does not contain a single result");
     *result = m_response.results[0];
   }
+  // delays to account for latency
+  HAL_Delay(50);
   return KRPC_OK;
 }
 

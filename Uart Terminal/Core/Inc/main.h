@@ -38,6 +38,12 @@ extern "C" {
 /* Exported types ------------------------------------------------------------*/
 /* USER CODE BEGIN ET */
 
+/*
+typedef struct {
+	krpc_SpaceCenter_Control_t control;
+	krpc_connection_t *connection;
+} krpc_control_context_t; */
+
 /* USER CODE END ET */
 
 /* Exported constants --------------------------------------------------------*/

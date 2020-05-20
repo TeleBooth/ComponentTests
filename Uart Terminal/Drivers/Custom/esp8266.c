@@ -67,11 +67,10 @@ ESP8266_STATUS esp8266_init(UART_HandleTypeDef *huart) {
 ESP8266_STATUS esp8266_reset(UART_HandleTypeDef *huart) {
 	strcpy((char *) esp_buffer, "AT+RST\r\n");
 
-	// this helps to deal with the uncertainty surrounding how long the reset sequence is
-	unknownSize = 1;
 	// IMPORTANT: YOU MIGHT NEED TO MODIFY THIS DEPENDING ON WHERE IN YOUR RESET SEQUENCE "READY" SHOWS UP
 	// but if we pass
 	// after transmitting and the second-long delay that elapses, hopefully we'll have it
+	unknownSize = 1;
 	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, GPIO_PIN_SET);
 	HAL_Delay(10);
 	HAL_GPIO_WritePin(GPIOA, GPIO_PIN_1, GPIO_PIN_RESET);
@@ -102,13 +101,13 @@ ESP8266_STATUS esp8266_connect_WiFi(UART_HandleTypeDef *huart, char *ssid,
 	strcat((char *) esp_buffer, "\"\r\n");
 
 	// Connect to WiFi
-	unknownSize = 1;
+	//unknownSize = 1;
 	// Ethier we wait for it to connect, or we wait for it not connect
 	// since not connecting provides the shorter sequence, then we can look at that to not lock our
 	// receiving wrapper
 	Transmit_Wrapper(huart, esp_buffer, strlen((char *) esp_buffer), R_AT_CWJAP_FAIL_LEN);
 	//HAL_Delay(8000);
-	unknownSize = 0;
+	//unknownSize = 0;
 	// if it matches the "wifi disconnect" sequence, then we return an error
 	if(Receive_Wrapper(responseBuffer, R_AT_CWJAP_FAIL, R_AT_CWJAP_FAIL_LEN) == ESP8266_OK)
 		return ESP8266_ERROR;
@@ -132,7 +131,7 @@ ESP8266_STATUS esp8266_connect_TCP(UART_HandleTypeDef *huart, char *ip,
 	strcat((char *) esp_buffer, "\r\n");
 
 	// Connect to TCP port
-
+	//HAL_Delay(3000);
 	Transmit_Wrapper(huart, esp_buffer, strlen((char *) esp_buffer), R_AT_CIPSTART_LEN);
 	HAL_Delay(500);
 	if(Receive_Wrapper(responseBuffer, R_AT_CIPSTART, R_AT_CIPSTART_LEN) == ESP8266_ERROR)

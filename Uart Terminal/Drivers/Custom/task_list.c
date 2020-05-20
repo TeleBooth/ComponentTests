@@ -1,7 +1,8 @@
 #include "stdint.h"
 #include "string.h"
 #include "task_list.h"
-#include "stm32l4xx.h"
+#include "usb_device.h"
+#include "krpc_cnano.h"
 //#include "stm32l476g_discovery.h"
 
 static TASK_NODE tasks[MAX_TASKS];
@@ -10,8 +11,14 @@ static TASK_NODE *tail;
 static uint8_t num_tasks;
 static uint32_t last_time;
 
-static void handle_response (UART_HandleTypeDef *huart, TASK_NODE *t);
-static void handle_request (UART_HandleTypeDef *huart, TASK_NODE *t);
+// getting it working with CDC
+extern USBD_HandleTypeDef hUsbDeviceFS;
+// contains FIFO queue of commands
+extern controller_handler_context_t controlCtx;
+extern krpc_connection_t connection;
+
+static void handle_response(UART_HandleTypeDef *huart, TASK_NODE *t);
+static void handle_request(UART_HandleTypeDef *huart, TASK_NODE *t);
 
 void init_task_list() {
 	uint8_t cnt;
@@ -27,6 +34,7 @@ void init_task_list() {
 	temp->next = head;
 	last_time = HAL_GetTick();
 	num_tasks = 0;
+	return;
 }
 
 uint8_t is_empty() {
@@ -71,7 +79,7 @@ void add_task(TASK_TYPE task_type, uint8_t size, void *task, uint32_t timeout,
 		t = head;
 		t->task_type = task_type;
 		t->size = size;
-		memcpy(t->task, (uint8_t *) task, size);
+		memcpy(t->task, (uint8_t*) task, size);
 		t->timeout = timeout;
 		t->repeat_interval = repeat_interval;
 		num_tasks++;
@@ -81,7 +89,7 @@ void add_task(TASK_TYPE task_type, uint8_t size, void *task, uint32_t timeout,
 	t = tail->next;
 	t->task_type = task_type;
 	t->size = size;
-	memcpy(t->task, (uint8_t *) task, size);
+	memcpy(t->task, (uint8_t*) task, size);
 	t->repeat_interval = repeat_interval;
 	// Unlink the task from the list
 	tail->next = t->next;
@@ -89,7 +97,9 @@ void add_task(TASK_TYPE task_type, uint8_t size, void *task, uint32_t timeout,
 	// Process the case were the task has to be inserted at the beginning of the task list
 	if (timeout < head->timeout) {
 		// Get empty task that precedes the head in the circular task list
-		for (cnt = 0, temp = head; cnt < MAX_TASKS - 2; cnt++, temp = temp->next);
+		for (cnt = 0, temp = head; cnt < MAX_TASKS - 2;
+				cnt++, temp = temp->next)
+			;
 		temp->next = t;
 		t->timeout = timeout;
 		t->next = head;
@@ -119,9 +129,10 @@ void add_task(TASK_TYPE task_type, uint8_t size, void *task, uint32_t timeout,
 		}
 	}
 	num_tasks++;
+	return;
 }
 
-void handle_tasks (UART_HandleTypeDef *huart) {
+void handle_tasks(UART_HandleTypeDef *huart) {
 	if (bring_current() > 2) {
 		return;
 	}
@@ -129,28 +140,73 @@ void handle_tasks (UART_HandleTypeDef *huart) {
 	head = head->next;
 	num_tasks--;
 	switch (t->task_type) {
-		case RESPONSE_TASK:
-			handle_response(huart, t);
-			break;
-		case REQUEST_TASK:
-			handle_request(huart, t);
-			break;
-		default:
-			break;
+	case RESPONSE_TASK:
+		handle_response(huart, t);
+		break;
+	case REQUEST_TASK:
+		handle_request(huart, t);
+		break;
+	default:
+		break;
 	}
 	if (t->repeat_interval) {
 		bring_current();
-		add_task(t->task_type, t->size, t->task, t->repeat_interval, t->repeat_interval);
+		add_task(t->task_type, t->size, t->task, t->repeat_interval,
+				t->repeat_interval);
 	}
 	t->task_type = NULL_TASK;
 	return;
 }
 
-void handle_response (UART_HandleTypeDef *huart, TASK_NODE *t) {
+// defined in main
+void krpc_Toggle_SAS(controller_tuple_t *currentCommand);
+void krpc_Toggle_RCS(controller_tuple_t *currentCommand);
+void krpc_Next_Stage(controller_tuple_t *currentCommand);
+void krpc_Pitch(controller_tuple_t *currentCommand);
+void krpc_Yaw(controller_tuple_t *currentCommand);
+void krpc_Poll(void);
+
+void handle_response(UART_HandleTypeDef *huart, TASK_NODE *t) {
+	controller_tuple_t *currentCommand = 0;
+	while (controlCtx.inPos != controlCtx.outPos) {
+		currentCommand = &controlCtx.controlQueue[controlCtx.outPos];
+		// if it's the button
+		if (currentCommand->btnBuf[1] == 'B') {
+			if (currentCommand->btnBuf[0] == 'A') {
+				if (currentCommand->value == '1') {
+					krpc_Toggle_SAS(currentCommand);
+				}
+			}
+			if (currentCommand->btnBuf[0] == 'B') {
+				if (currentCommand->value == '1') {
+					krpc_Toggle_RCS(currentCommand);
+				}
+			}
+			if (currentCommand->btnBuf[0] == 'X') {
+				if (currentCommand->value == '1') {
+					krpc_Next_Stage(currentCommand);
+				}
+			}
+		}
+		// if it's the dpad
+		else if (currentCommand->btnBuf[0] == 'D') {
+			if (currentCommand->btnBuf[1] == 'U'
+					|| currentCommand->btnBuf[1] == 'D') {
+				if (currentCommand->value == '1')
+					krpc_Pitch(currentCommand);
+			}
+			if (currentCommand->btnBuf[1] == 'L'
+					|| currentCommand->btnBuf[1] == 'R') {
+				if (currentCommand->value == '1')
+					krpc_Yaw(currentCommand);
+			}
+		}
+		controlCtx.outPos = (controlCtx.outPos + 1) % MAX_COMMANDS;
+	}
+	return;
 
 }
 
-void handle_request (UART_HandleTypeDef *huart, TASK_NODE *t) {
-	HAL_UART_Transmit_DMA(huart, &t->size, 1);
-	while(HAL_UART_Transmit_DMA(huart, t->task, t->size) == HAL_BUSY);
+void handle_request(UART_HandleTypeDef *huart, TASK_NODE *t) {
+	krpc_Poll();
 }
