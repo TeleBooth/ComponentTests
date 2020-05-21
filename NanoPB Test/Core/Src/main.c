@@ -404,7 +404,7 @@ int main(void) {
 		while (1)
 			;
 	}
-	if (esp8266_connect_TCP(&huart2, "98.223.235.63", 50000)) {
+	if (esp8266_connect_TCP(&huart2, "192.168.0.7", 50000)) {
 		while (1)
 			;
 	}
