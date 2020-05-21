@@ -23,10 +23,10 @@ typedef enum {
 } krpc_error_t;
 
 /* Convert an error code to a string */
-const char * krpc_get_error(krpc_error_t error);
-extern USBD_HandleTypeDef hUsbDeviceFS;
-extern uint8_t UserTxBufferFS[2048];
-void USB_CDC_Wrapper(uint32_t size);
+//const char * krpc_get_error(krpc_error_t error);
+//extern USBD_HandleTypeDef hUsbDeviceFS;
+//extern uint8_t UserTxBufferFS[2048];
+//void USB_CDC_Wrapper(uint32_t size);
 
 /* Print an error message when it occurs */
 #if !defined(KRPC_PRINT_ERROR)
@@ -34,8 +34,6 @@ void USB_CDC_Wrapper(uint32_t size);
 #define KRPC_PRINT_ERROR(...) fprintf(stderr, __VA_ARGS__)
 #else
 #define KRPC_PRINT_ERROR(...) {	\
-	uint32_t size = sprintf((char *) UserTxBufferFS, __VA_ARGS__); \
-	USB_CDC_Wrapper(size + 1);  \
 }
 
 #endif

@@ -158,7 +158,7 @@ int main(void) {
 			.5 * SEC);
 
 	add_task(REQUEST_TASK, buffer[BUF_SIZE], (void*) buffer, 1 * SEC,
-				1 * SEC);
+				.75 * SEC);
 
 	while (1) {
 		//HAL_Delay(100);
